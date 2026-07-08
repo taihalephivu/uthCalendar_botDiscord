@@ -12,7 +12,7 @@ import redisManager
 def verifyUthCredentials(user, password):
     try:
         fakeCaptcha = utils.generateFakeCaptcha()
-        url = f"https://portal.ut.edu.vn/api/v1/user/login?g-recaptcha-response={fakeCaptcha}"
+        url = f"https://portal.ut.edu.vn/api/v1/user/login?g-recaptcha-response={fakeCaptcha}" 
 
         r = utils.safeRequest("POST", url, json={"username": user, "password": password})
         

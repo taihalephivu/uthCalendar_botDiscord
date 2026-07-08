@@ -33,16 +33,28 @@ def getValidCourseSession(chatId, rawUser, rawPass):
 def fetchMoodleSession(username, password):
     with requests.Session(impersonate="chrome110") as s:
         try:
-            h = {"Connection": "close"}
+            s.headers.update({
+                "Connection": "close",
+                "Accept": "application/json, text/plain, */*",
+                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+            })
             fakeCaptcha = utils.generateFakeCaptcha()
             url = f"https://portal.ut.edu.vn/api/v1/user/login?g-recaptcha-response={fakeCaptcha}"
             
-            r1 = s.post(url, json={"username": username, "password": password}, headers=h, timeout=15)
-            jwt = r1.json().get("token")
+            r1 = s.post(url, json={"username": username, "password": password}, timeout=15)
+            
+            try:
+                res_data = r1.json()
+            except Exception:
+                utils.log("ERROR", f"Moodle Login: Server không trả về JSON. Mã HTTP: {r1.status_code}")
+                return None, None
+
+            jwt = res_data.get("token")
             if not jwt: return None, None
 
-            s.get(f"https://courses.ut.edu.vn/login/index.php?token={jwt}", headers=h, timeout=15)
-            rHome = s.get("https://courses.ut.edu.vn/my/", headers=h, timeout=15)
+            h_moodle = {"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8"}
+            s.get(f"https://courses.ut.edu.vn/login/index.php?token={jwt}", headers=h_moodle, timeout=15)
+            rHome = s.get("https://courses.ut.edu.vn/my/", headers=h_moodle, timeout=15)
             
             sesskeyMatch = re.search(r'"sesskey":"([^"]+)"', rHome.text)
             sesskey = sesskeyMatch.group(1) if sesskeyMatch else None
@@ -86,10 +98,21 @@ def getDeadlineMessages(chatId, cookieDict, sesskey, startDate=None, numDays=7):
     
     with requests.Session(impersonate="chrome110") as s:
         s.cookies.update(cookieDict)
+        # Thêm headers mặc định cho Moodle Session
+        s.headers.update({
+            "Connection": "close",
+            "Accept": "application/json, text/plain, */*",
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+        })
         
         try:
-            r = s.post(url, json=payload, headers={"Connection": "close"}, timeout=15)
-            responses = r.json()
+            r = s.post(url, json=payload, timeout=15)
+            
+            try:
+                responses = r.json()
+            except Exception:
+                utils.log("ERROR", f"Moodle Deadline: Server không trả về JSON. Mã HTTP: {r.status_code}. Nội dung: {r.text[:500]}")
+                return None
 
             if responses and isinstance(responses, list) and responses[0].get('error'):
                 utils.log("WARN", f"Session Moodle của {chatId} đã hết hạn")
