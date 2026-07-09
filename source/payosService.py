@@ -3,6 +3,7 @@
 
 import os
 import time
+import urllib.parse
 from payos import PayOS
 from payos.type import PaymentData
 from utils import log
@@ -39,7 +40,16 @@ def create_donate_link(chat_id: str, username: str, amount: int):
         )
         
         response = payos.createPaymentLink(payment_data)
-        return response.checkoutUrl, response.qrCode, order_code
+        
+        encoded_desc = urllib.parse.quote(response.description)
+        encoded_name = urllib.parse.quote(response.accountName)
+        
+        qr_image_url = (
+            f"https://img.vietqr.io/image/{response.bin}-{response.accountNumber}-vietqr_pro.jpg"
+            f"?addInfo={encoded_desc}&amount={response.amount}&accountName={encoded_name}"
+        )
+        
+        return response.checkoutUrl, qr_image_url, order_code
     except Exception as e:
         log("ERROR", f"Lỗi tạo link payOS cho {chat_id}: {e}")
         return None, None, None

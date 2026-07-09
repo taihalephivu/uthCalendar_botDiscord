@@ -94,12 +94,9 @@ def donateTask(self, chatId, username, amount):
         bot.send_message(chatId, "❌ Chức năng Donate hiện đang tạm khóa do hệ thống chưa cấu hình PayOS. Bạn quay lại sau nhé!")
         return
         
-    checkout_url, qr_code_str, order_code = payosService.create_donate_link(str(chatId), username, amount)
+    checkout_url, qr_image_url, order_code = payosService.create_donate_link(str(chatId), username, amount)
     
-    if checkout_url and qr_code_str:
-        encoded_qr = urllib.parse.quote(qr_code_str)
-        qr_image_url = f"https://api.qrserver.com/v1/create-qr-code/?size=350x350&data={encoded_qr}"
-        
+    if checkout_url and qr_image_url:
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("💳 Mở trang thanh toán Web", url=checkout_url))
         

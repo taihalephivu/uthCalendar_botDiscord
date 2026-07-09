@@ -22,7 +22,7 @@ def mainMenu(chatId):
     markup.add("🏛️ Portal Menu", "📚 Course Menu") 
     markup.add("🔑 Đăng ký", "📩 Góp ý/Báo lỗi")
 
-    if not payosService.payos:
+    if payosService.payos:
         markup.add("🛠️ Kiểm tra hệ thống", "💰 Donate")
     else:
         markup.add("🛠️ Kiểm tra hệ thống")
