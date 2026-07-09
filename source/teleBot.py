@@ -1,8 +1,11 @@
 # Copyright (c) 2026 vanphat111 <phathovan14122006@email.com> | All rights reserved
 # teleBot.py
 
+import os
+
 from telebot import types
 # import portalService
+import payosService
 import utils
 import teleFunc
 # import courseService
@@ -18,7 +21,12 @@ def mainMenu(chatId):
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     markup.add("🏛️ Portal Menu", "📚 Course Menu") 
     markup.add("🔑 Đăng ký", "📩 Góp ý/Báo lỗi")
-    markup.add("🛠️ Kiểm tra hệ thống", "💰 Donate")
+
+    if not payosService.payos:
+        markup.add("🛠️ Kiểm tra hệ thống", "💰 Donate")
+    else:
+        markup.add("🛠️ Kiểm tra hệ thống")
+
     if str(chatId) == str(adminId):
         btn_admin = types.KeyboardButton("⚙️ Admin Panel")
         markup.add(btn_admin)

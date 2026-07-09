@@ -90,6 +90,10 @@ def portalWeekTask(self, chatId, startDateStr):
 def donateTask(self, chatId, username, amount):
     sendWorkerCheckIn(self, chatId)
     
+    if not payosService.payos:
+        bot.send_message(chatId, "❌ Chức năng Donate hiện đang tạm khóa do hệ thống chưa cấu hình PayOS. Bạn quay lại sau nhé!")
+        return
+        
     checkout_url, qr_code_str, order_code = payosService.create_donate_link(str(chatId), username, amount)
     
     if checkout_url and qr_code_str:
@@ -155,7 +159,7 @@ def periodicPortalTask(self, chatId, dateStr):
 )
 def updateWeatherTask():
     if not WEATHER_API_KEY:
-        log("ERROR", "WEATHER_API_KEY chưa được cấu hình!")
+        log("WARN", "Bỏ qua chu kỳ cập nhật thời tiết do thiếu cấu hình WEATHER_API_KEY.")
         return
 
     campuses = {
@@ -186,9 +190,10 @@ def updateWeatherTask():
 
 @app.task(bind=True, name='tasks.checkPaymentTask', queue='low_priority')
 def checkPaymentTask(self, chatId, username, orderCode):
-    import payosService
-    from utils import log
-    
+    if not payosService.payos:
+        log("WARN", f"Bỏ qua chu kỳ check đơn hàng {orderCode} do PayOS chưa được cấu hình (None).")
+        return
+
     admin_id = os.getenv("ADMIN_ID")
     max_retries = 90
     current_attempt = self.request.retries + 1  

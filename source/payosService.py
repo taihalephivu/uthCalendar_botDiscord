@@ -7,13 +7,23 @@ from payos import PayOS
 from payos.type import PaymentData
 from utils import log
 
-payos = PayOS(
-    client_id=os.getenv("PAYOS_CLIENT_ID"),
-    api_key=os.getenv("PAYOS_API_KEY"),
-    checksum_key=os.getenv("PAYOS_CHECKSUM_KEY")
-)
+payos = None
+
+if os.getenv("PAYOS_CLIENT_ID") and os.getenv("PAYOS_API_KEY") and os.getenv("PAYOS_CHECKSUM_KEY"):
+    try:
+        payos = PayOS(
+            client_id=os.getenv("PAYOS_CLIENT_ID"),
+            api_key=os.getenv("PAYOS_API_KEY"),
+            checksum_key=os.getenv("PAYOS_CHECKSUM_KEY")
+        )
+    except Exception as e:
+        log("ERROR", f"Không thể khởi tạo SDK PayOS: {e}")
 
 def create_donate_link(chat_id: str, username: str, amount: int):
+    if not payos:
+        log("ERROR", f"Chức năng Donate chưa được cấu hình. Bỏ qua yêu cầu từ: {chat_id}")
+        return None, None, None
+        
     try:
         order_code = int(time.time() * 1000) % 100000000
         
