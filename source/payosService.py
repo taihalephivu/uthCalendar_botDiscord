@@ -26,7 +26,10 @@ def create_donate_link(chat_id: str, username: str, amount: int):
         return None, None, None
         
     try:
-        order_code = int(time.time() * 1000) % 100000000
+        current_time = int(time.time())
+        order_code = current_time % 100000000
+        
+        expire_timestamp = current_time + 900
         
         user_clean = username.replace("@", "") if username else f"User{chat_id[:4]}"
         description = f"{user_clean} donate to UTH_calendar"[:25] 
@@ -36,7 +39,8 @@ def create_donate_link(chat_id: str, username: str, amount: int):
             amount=amount,
             description=description,
             cancelUrl="https://t.me/uth_calendar_bot",
-            returnUrl="https://t.me/uth_calendar_bot"
+            returnUrl="https://t.me/uth_calendar_bot",
+            expiredAt=expire_timestamp
         )
         
         response = payos.createPaymentLink(payment_data)
