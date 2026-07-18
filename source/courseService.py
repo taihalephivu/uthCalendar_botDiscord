@@ -156,7 +156,7 @@ def getDeadlineMessages(chatId, cookieDict, sesskey, startDate=None, numDays=7):
 
         except Exception as e:
             utils.log("ERROR", f"Lỗi lấy message deadline: {e}")
-            return []
+        return None
 
 def scanAllDeadlines(bot, chatId, isManual=False, startDate=None, numDays=7):
     u = db.getUserCredentials(chatId)
@@ -184,8 +184,13 @@ def scanAllDeadlines(bot, chatId, isManual=False, startDate=None, numDays=7):
                 }
             redisManager.saveSession(chatId, 'course', data)
             messages = getDeadlineMessages(chatId, session, sesskey, startDate=startDate, numDays=numDays)
+
+    if messages is None:
+        bot.send_message(chatId, "❌ Không thể lấy danh sách deadline.")
+        return False
+
             
-    if not messages:
+    if len(messages) == 0:
         if isManual:
             bot.send_message(chatId, "🎉 <b>Tuyệt vời!</b>\nBạn không có deadline nào trong khoảng thời gian này. Nghỉ ngơi thôi!", parse_mode="HTML")
         return True
