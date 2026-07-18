@@ -131,16 +131,30 @@ def prepareMonthlyPayload(startDate, numDays):
         }
     }]
 
-    if endDate.month != startDate.month:
+    currentYear = startDate.year
+    currentMonth = startDate.month
+    index = 1
+
+    while (currentYear, currentMonth) != (endDate.year, endDate.month):
+        if currentMonth == 12:
+            currentMonth = 1
+            currentYear += 1
+        else:
+            currentMonth += 1
+
         payload.append({
-            "index": 1,
+            "index": index,
             "methodname": "core_calendar_get_calendar_monthly_view",
             "args": {
-                "year": str(endDate.year), "month": str(endDate.month),
+                "year": str(currentYear), "month": str(currentMonth),
                 "courseid": 1, "day": 1, "view": "month"
             }
         })
+
+        index += 1
+
     return payload, now_ts, end_ts
+
 
 def getDeadlineMessages(chatId, cookieDict, sesskey, startDate=None, numDays=7):
     if startDate is None:
