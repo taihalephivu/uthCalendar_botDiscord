@@ -155,7 +155,6 @@ def prepareMonthlyPayload(startDate, numDays):
 
     return payload, now_ts, end_ts
 
-
 def getDeadlineMessages(chatId, cookieDict, sesskey, startDate=None, numDays=7):
     if startDate is None:
         startDate = datetime.now()
@@ -261,14 +260,19 @@ def scanAllDeadlines(bot, chatId, isManual=False, startDate=None, numDays=7):
             bot.send_message(chatId, "🎉 <b>Tuyệt vời!</b>\nBạn không có deadline nào trong khoảng thời gian này. Nghỉ ngơi thôi!", parse_mode="HTML")
         return True
 
-    now_str = startDate.strftime('%d/%m/%Y') if startDate else datetime.now().strftime('%d/%m/%Y')
+    rangeStart = startDate if startDate else datetime.now()
+    rangeEnd = rangeStart + timedelta(days=numDays)
+
+    startStr = rangeStart.strftime('%d/%m/%Y')
+    endStr = rangeEnd.strftime('%d/%m/%Y')
+
     if isManual:
-        header = f"🔍 <b>DANH SÁCH DEADLINE MỚI NHẤT</b>\n"
+        header = "🔍 <b>DANH SÁCH DEADLINE</b>\n"
     else:
-        header = f"🚀 <b>THÔNG BÁO DEADLINE TỰ ĐỘNG</b>\n"
-    
-    header += f"📅 <i>Cập nhật lúc: {now_str}</i>\n"
-    header += f"✍️ Bạn có <b>{len(messages)}</b> sự kiện trong {numDays} ngày tới.\n"
+        header = "🚀 <b>THÔNG BÁO DEADLINE TỰ ĐỘNG</b>\n"
+
+    header += f"📅 <i>Thời gian: từ {startStr} đến {endStr}</i>\n"
+    header += f"✍️ Tìm thấy <b>{len(messages)}</b> sự kiện trong khoảng thời gian này.\n"
     header += "━━━━━━━━━━━━━━━━━━"
     
     bot.send_message(chatId, header, parse_mode="HTML")
