@@ -1,90 +1,80 @@
-# 📅 UTH Calendar Bot
+# 🎓 UTH Calendar Bot (Discord)
 
-[![Docker Image](https://img.shields.io/badge/Docker-Enabled-blue?logo=docker)](https://hub.docker.com/r/vanphat111/uth-calendar)
-[![Python Version](https://img.shields.io/badge/Python-3.11+-yellow?logo=python)](https://www.python.org/)
-[![Celery](https://img.shields.io/badge/Worker-Celery-green?logo=celery)](https://docs.celeryq.dev/)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
-
-Một trợ lý Telegram thông minh, hiệu năng cao giúp sinh viên **Đại học Giao thông Vận tải TP.HCM (UTH)** quản lý lịch học và deadline tự động. Hệ thống được thiết kế theo kiến trúc microservices và vận hành ổn định trên các server cá nhân thông qua Docker.
-
-## 🚀 Tính năng nổi bật
-
-* 🔔 **Nhắc lịch Portal:** Tự động gửi lịch học vào các khung giờ 05:00, 12:00 và 17:00 hàng ngày.
-* 📑 **Quét Deadline định kỳ:** Tự động thông báo bài tập mới vào 19:00 thứ Hai hàng tuần.
-* 🔍 **Quét Deadline tùy chỉnh:** Chủ động chọn ngày bắt đầu và số ngày muốn quét thông qua giao diện nút bấm.
-* 💰 **Ủng hộ (Donate) tự động:** Hỗ trợ tạo mã VietQR động theo định mức hoặc số tiền tùy chọn qua cổng PayOS.
-* 🛡️ **Khởi động an toàn (Fail-safe):** Tự động kiểm tra nghiêm ngặt các biến môi trường cốt lõi khi khởi động.
-* 🛑 **Cảnh báo Tạm ngưng:** Tự động nhận diện và hiển thị trạng thái môn học bị tạm nghỉ từ hệ thống Portal.
-* 🔐 **Cơ chế Auto-Relogin:** Tự động gia hạn Session và làm mới Sesskey khi hết hạn để đảm bảo dữ liệu luôn cập nhật.
-* 🔒 **Bảo mật dữ liệu:** Mã hóa thông tin tài khoản sinh viên bằng chuẩn **AES-256** trước khi lưu trữ vào Database.
-* ⚡ **Xử lý bất đồng bộ:** Sử dụng Celery và Redis để phân tách các tác vụ quét dữ liệu nặng, giúp Bot phản hồi nhanh.
-
-## 🛠 Tech Stack
-
-* **Language:** Python 3.11+
-* **Library:** `pyTelegramBotAPI` (Telebot), `payos`
-* **Task Queue:** Celery (Distributed Task Queue)
-* **Broker & Cache:** Redis
-* **Database:** PostgreSQL
-* **Security:** `cryptography` (Fernet AES-256)
-* **Deployment:** Docker & Docker Compose
+Bot Discord đa nhiệm dành cho sinh viên Trường Đại học Giao thông Vận tải TP.HCM (UTH).
+Hệ thống tự động tra cứu lịch học, nhắc nhở deadline bài tập, và cung cấp thông tin thời tiết dựa trên nền tảng Discord với kiến trúc phân tán mạnh mẽ.
 
 ---
 
-## ⚙️ Cấu hình hệ thống
+## 🚀 Tính Năng Chính
 
-Chuẩn bị file `.env` với các tham số cấu hình dưới đây để vận hành hệ thống:
+- **Slash Commands**: Giao diện lệnh `/` hiện đại, tự động gợi ý tham số và giữ bảo mật thông tin (chế độ phản hồi ẩn danh - ephemeral).
+- **Lịch Học Nhanh Chóng**: Xem lịch học hôm nay, lịch cả tuần chi tiết đến từng phòng học và cơ sở.
+- **Nhắc Lịch Tự Động**: Tự động gửi thông báo lịch học vào các khung giờ 05:00, 12:00, và 17:00 hằng ngày.
+- **Quét Deadline (Moodle)**: Tự động tổng hợp và nhắc nhở bài tập chưa hoàn thành trên hệ thống Courses, tự động quét định kỳ vào thứ Hai.
+- **Thời Tiết Tích Hợp**: Tự động nhận diện cơ sở học và hiển thị thời tiết tương ứng cho từng ca học.
+- **Kiến Trúc Phân Tán (Microservices)**:
+  - `Discord Bot`: Đóng vai trò là Gateway giao tiếp chính với người dùng.
+  - `Celery & Redis`: Hệ thống Hàng đợi (Queue) xử lý các tác vụ nền tốn thời gian (cào dữ liệu) để không làm treo bot.
+  - `Cloudflare WARP`: Proxy vượt rào để tránh việc bị hệ thống trường chặn IP khi có quá nhiều truy vấn.
+  - `SQLite`: Cơ sở dữ liệu gọn nhẹ, lưu trữ cấu hình người dùng và phiên bản mã hóa bảo mật.
 
-### 1. Cấu hình cốt lõi (Bắt buộc)
-| Biến | Mô tả |
-| :--- | :--- |
-| `TELE_TOKEN` | API Token của Bot lấy từ @BotFather |
-| `ADMIN_ID` | ID Telegram của quản trị viên để nhận báo lỗi/góp ý |
-| `DB_HOST` | Địa chỉ kết nối host của PostgreSQL |
-| `DB_NAME` | Tên cơ sở dữ liệu hệ thống |
-| `DB_USER` | Tên người dùng quyền cấu hình Database |
-| `DB_PASS` | Mật khẩu truy cập Database |
-| `CELERY_BROKER_URL` | URL kết nối hàng đợi Redis (Ví dụ: `redis://uth_redis:6379/0`) |
-| `ENCRYPTION_KEY` | Khóa mã hóa thông tin AES-256 được tạo bởi thư viện Fernet |
+## 🛠️ Công Nghệ Sử Dụng
 
-### 2. Cấu hình tính năng mở rộng (Tùy chọn)
-*Nếu thiếu các biến này, chức năng tương ứng sẽ tự động ẩn trên Menu Bot.*
+- **Ngôn ngữ**: Python 3.10+
+- **Thư viện chính**: `discord.py` (Bot framework), `Celery` (Task Queue), `curl_cffi` (Requests), `cryptography`.
+- **Cơ sở dữ liệu & Caching**: `SQLite`, `Redis`.
+- **Môi trường triển khai**: `Docker`, `Docker Compose`.
 
-| Biến | Mô tả | Chức năng ảnh hưởng |
-| :--- | :--- | :--- |
-| `WEATHER_API_KEY` | API Key lấy từ nền tảng [weatherapi](https://www.weatherapi.com/) | Hiển thị thời tiết theo ca học tại các cơ sở |
-| `PAYOS_CLIENT_ID` | Client ID được cấp từ ứng dụng PayOS cá nhân | Khởi tạo cổng nhận Donate tự động |
-| `PAYOS_API_KEY` | API Key kết nối cổng thanh toán của PayOS | Khởi tạo cổng nhận Donate tự động |
-| `PAYOS_CHECKSUM_KEY` | Checksum Key dùng để xác thực gói tin bảo mật PayOS | Khởi tạo cổng nhận Donate tự động |
+## ⚙️ Hướng Dẫn Cài Đặt & Chạy Hệ Thống
 
----
+### 1. Yêu cầu hệ thống
+- Máy tính hoặc Server có sẵn **Docker** và **Docker Compose**.
+- Một tài khoản Discord Developer để lấy Bot Token.
 
-## 📦 Hướng dẫn triển khai (Docker)
+### 2. Cấu hình biến môi trường
+Tạo file `.env` ở thư mục gốc của dự án và điền các thông tin sau:
+```env
+# Cấu hình Discord
+DISCORD_TOKEN=your_discord_bot_token_here
+ADMIN_ID=your_discord_user_id_here
 
-Sử dụng Docker Compose để triển khai nhanh toàn bộ hạ tầng:
+# Bảo mật (Tạo mã khóa ngẫu nhiên bằng Python Fernet)
+ENCRYPTION_KEY=your_fernet_encryption_key_here
 
-1. **Tải mã nguồn:**
-    ```bash
-    git clone https://github.com/vanphat111/uthCalendar.git
-    cd uthCalendar
-    ```
-2. **Thiết lập môi trường:** Tạo file `.env` và cấu hình các biến môi trường cần thiết theo bảng hướng dẫn phía trên.
-3. **Khởi chạy hệ thống:**
-    ```bash
-    docker compose up -d --build
-    ```
+# Tùy chọn: API Thời Tiết (Lấy từ weatherapi.com)
+WEATHER_API_KEY=your_weather_api_key_here
+```
 
-Hệ thống sẽ tự khởi động các container bao gồm **Bot Engine**, **Celery Worker**, **PostgreSQL** và **Redis**.
+### 3. Khởi động hệ thống
+Toàn bộ hệ thống được đóng gói sẵn. Chỉ cần một dòng lệnh duy nhất để khởi chạy:
 
----
+```bash
+docker compose up -d --build
+```
 
-## 🤝 Đóng góp (Contribution)
+Docker sẽ tự động kích hoạt và kết nối:
+- Container `uth_bot` (Bot Discord)
+- Container `worker_vip` & `worker_low` (Celery Workers)
+- Container `celery_beat` (Bộ hẹn giờ Cron)
+- Container `uth_redis` (Bộ nhớ Cache & Message Broker)
+- Container `uth_warp` (Proxy mạng bảo mật)
 
-Dự án được phát triển bởi [**vanphat111**](https://github.com/vanphat111) (sinh viên UTH) với mục đích hỗ trợ cộng đồng. Mọi Pull Request hoặc báo lỗi đều được trân trọng.
+### 4. Dữ liệu lưu trữ
+Mọi dữ liệu sinh ra (file CSDL `database.sqlite3`) sẽ được lưu an toàn tại thư mục `./data/` trên máy tính/server của bạn thông qua Docker Volumes, giúp dữ liệu không bị mất khi khởi động lại bot.
 
-1. Fork dự án.
-2. Tạo branch mới: `git checkout -b feature/AmazingFeature`
-3. Commit thay đổi: `git commit -m 'feat: add some AmazingFeature'`
-4. Gửi Pull Request.
+## 💻 Danh Sách Lệnh (Slash Commands)
 
-**Link dự án:** [https://github.com/vanphat111/uthCalendar](https://github.com/vanphat111/uthCalendar)
+Gõ phím `/` trong server hoặc tin nhắn riêng với bot trên Discord:
+- `/login <mssv> <password>`: Cung cấp thông tin đăng nhập portal để bot có thể tự động tra cứu.
+- `/lichhoc [ngày]`: Xem lịch học theo ngày cụ thể (Nếu để trống mặc định là hôm nay).
+- `/lichtuan [ngày]`: Xem tổng quan lịch học nguyên tuần.
+- `/deadline`: Quét và liệt kê các bài tập chưa làm trên khóa học.
+- `/done <id>`: Đánh dấu hoàn thành một bài tập.
+- `/undone <id>`: Bỏ đánh dấu hoàn thành bài tập (nếu lỡ bấm nhầm).
+
+## 🛡️ Bảo Mật
+- **Mã hóa Dữ liệu**: Mật khẩu portal của sinh viên được mã hóa 2 chiều siêu bảo mật (chuẩn Fernet/AES) trước khi lưu vào SQLite. Kể cả người nắm giữ file CSDL cũng không thể đọc được mật khẩu nếu không có `ENCRYPTION_KEY`.
+- **Riêng tư Người Dùng**: Quá trình đăng nhập và trả kết quả qua lệnh Slash luôn được cài đặt ẩn (`ephemeral`), người xung quanh trong Server Discord không thể xem được tin nhắn của bạn với Bot.
+
+## 🤝 Bản Quyền
+Dự án được bảo vệ bản quyền. Vui lòng tôn trọng quyền tác giả và không sử dụng cho mục đích thương mại mà không có sự cho phép.

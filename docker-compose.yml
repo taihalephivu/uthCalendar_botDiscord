@@ -22,21 +22,6 @@ services:
       - uth_warp_data:/var/lib/cloudflare-warp
     networks:
       - uth-network
-
-  # Database - PostgreSQL
-  uth_db:
-    image: postgres:15-alpine
-    container_name: uth_calendar_db
-    restart: unless-stopped
-    networks:
-      - uth-network
-    environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASS}
-      POSTGRES_DB: ${DB_NAME}
-    volumes:
-      - uth_db_data:/var/lib/postgresql/data
-
   # Redis - Celery Broker
   uth_redis:
     image: redis:7-alpine
@@ -47,27 +32,23 @@ services:
     networks:
       - uth-network
 
-  # Telegram Bot
+  # Discord Bot
   uth_bot:
     image: vanphat111/uth-calendar:latest
     container_name: uth_calendar_bot
     restart: unless-stopped
     depends_on:
-      - uth_db
       - uth_warp
     networks:
       - uth-network
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/app/data
     environment:
       - PYTHONUNBUFFERED=1
       - TZ=Asia/Ho_Chi_Minh
-      - TELE_TOKEN=${TELE_TOKEN}
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
       - ADMIN_ID=${ADMIN_ID}
-      - DB_HOST=${DB_HOST}
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PASS=${DB_PASS}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - WEATHER_API_KEY=${WEATHER_API_KEY}
       - WARP_PROXY_URL=socks5://uth_warp:1080
@@ -84,16 +65,12 @@ services:
       - uth-network
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/app/data
     depends_on:
       - uth_redis
-      - uth_db
       - uth_warp
     environment:
-      - TELE_TOKEN=${TELE_TOKEN}
-      - DB_HOST=${DB_HOST}
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PASS=${DB_PASS}
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - WEATHER_API_KEY=${WEATHER_API_KEY}
       - WARP_PROXY_URL=socks5://uth_warp:1080
@@ -110,16 +87,12 @@ services:
       - uth-network
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/app/data
     depends_on:
       - uth_redis
-      - uth_db
       - uth_warp
     environment:
-      - TELE_TOKEN=${TELE_TOKEN}
-      - DB_HOST=${DB_HOST}
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PASS=${DB_PASS}
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - WEATHER_API_KEY=${WEATHER_API_KEY}
       - WARP_PROXY_URL=socks5://uth_warp:1080
@@ -134,13 +107,10 @@ services:
       - uth-network
     depends_on:
       - uth_redis
-      - uth_db
+    volumes:
+      - ./data:/app/data
     environment:
-      - TELE_TOKEN=${TELE_TOKEN}
-      - DB_HOST=${DB_HOST}
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PASS=${DB_PASS}
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - WEATHER_API_KEY=${WEATHER_API_KEY}
 
@@ -159,7 +129,6 @@ services:
       - uth-network
 
 volumes:
-  uth_db_data:
   redis_data:
   uth_warp_data:
 

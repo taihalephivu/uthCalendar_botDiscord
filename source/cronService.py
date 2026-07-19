@@ -7,7 +7,7 @@ import database as db
 from utils import log
 import task
 
-def autoCheckAndNotify(bot):
+def autoCheckAndNotify():
     log("CRON", "Bắt đầu chu kỳ quét Portal")
     try:
         users = db.getUsersForPortalNotify()
@@ -26,7 +26,7 @@ def autoCheckAndNotify(bot):
     except Exception:
         log("CRITICAL", f"Crash tại autoCheckAndNotify: {traceback.format_exc()}")
 
-def autoScanAllUsers(bot):
+def autoScanAllUsers():
     log("CRON", "Bắt đầu chu kỳ quét Course Deadline")
     try:
         users = db.getUsersForDeadlineNotify()

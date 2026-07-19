@@ -17,12 +17,9 @@ app.conf.update(
         'tasks.portalTask': {'queue': 'high_priority'},
         'tasks.deadlineTask': {'queue': 'high_priority'},
         'tasks.registrationTask': {'queue': 'high_priority'},
-        'tasks.systemStatusTask': {'queue': 'high_priority'},
-        'tasks.donateTask': {'queue': 'high_priority'},
         
         'tasks.periodicPortalTask': {'queue': 'low_priority'},
         'tasks.periodicCourseTask': {'queue': 'low_priority'},
-        'tasks.checkPaymentTask': {'queue': 'low_priority'},
     }
 )
 

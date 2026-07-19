@@ -1,3 +1,4 @@
+import notifier
 from curl_cffi import requests
 import time
 from datetime import datetime, timedelta
@@ -205,11 +206,11 @@ def getDeadlineMessages(chatId, cookieDict, sesskey, startDate=None, numDays=7):
                 status = "✅ Đã xong" if isDone else "❌ Chưa xong"
                 
                 text = (
-                    f"🔔 <a href='{e.get('url')}'><b>{e['name']}</b></a>\n"
+                    f"🔔 **[{e['name']}]({e.get('url')})**\n"
                     f"━━━━━━━━━━━━━━━━━━\n"
-                    f"📝 <b>Trạng thái:</b> {status}\n"
-                    f"📚 <b>Môn:</b> {e['course']['fullname']}\n"
-                    f"⏰ <b>Hạn:</b> <code>{dueStr}</code>"
+                    f"📝 **Trạng thái:** {status}\n"
+                    f"📚 **Môn:** {e['course']['fullname']}\n"
+                    f"⏰ **Hạn:** `{dueStr}`"
                 )
 
                 msgList.append({
@@ -223,7 +224,7 @@ def getDeadlineMessages(chatId, cookieDict, sesskey, startDate=None, numDays=7):
             utils.log("ERROR", f"Lỗi lấy message deadline: {e}")
         return None
 
-def scanAllDeadlines(bot, chatId, isManual=False, startDate=None, numDays=7):
+def scanAllDeadlines(chatId, isManual=False, startDate=None, numDays=7):
     u = db.getUserCredentials(chatId)
     if not u: return False
 
@@ -233,7 +234,7 @@ def scanAllDeadlines(bot, chatId, isManual=False, startDate=None, numDays=7):
     session, sesskey = getValidCourseSession(chatId, rawUser, rawPass)
     
     if not session or not sesskey:
-        if isManual: bot.send_message(chatId, "❌ Không thể kết nối hệ thống Courses.")
+        if isManual: notifier.send_message("discord", chatId, "❌ Không thể kết nối hệ thống Courses.")
         return False
 
     messages = getDeadlineMessages(chatId, session, sesskey, startDate=startDate, numDays=numDays)
@@ -251,13 +252,13 @@ def scanAllDeadlines(bot, chatId, isManual=False, startDate=None, numDays=7):
             messages = getDeadlineMessages(chatId, session, sesskey, startDate=startDate, numDays=numDays)
 
     if messages is None:
-        bot.send_message(chatId, "❌ Không thể lấy danh sách deadline.")
+        notifier.send_message("discord", chatId, "❌ Không thể lấy danh sách deadline.")
         return False
 
             
     if len(messages) == 0:
         if isManual:
-            bot.send_message(chatId, "🎉 <b>Tuyệt vời!</b>\nBạn không có deadline nào trong khoảng thời gian này. Nghỉ ngơi thôi!", parse_mode="HTML")
+            notifier.send_message("discord", chatId, "🎉 **Tuyệt vời!**\nBạn không có deadline nào trong khoảng thời gian này. Nghỉ ngơi thôi!")
         return True
 
     rangeStart = startDate if startDate else datetime.now()
@@ -267,21 +268,21 @@ def scanAllDeadlines(bot, chatId, isManual=False, startDate=None, numDays=7):
     endStr = rangeEnd.strftime('%d/%m/%Y')
 
     if isManual:
-        header = "🔍 <b>DANH SÁCH DEADLINE</b>\n"
+        header = "🔍 **DANH SÁCH DEADLINE**\n"
     else:
-        header = "🚀 <b>THÔNG BÁO DEADLINE TỰ ĐỘNG</b>\n"
+        header = "🚀 **THÔNG BÁO DEADLINE TỰ ĐỘNG**\n"
 
-    header += f"📅 <i>Thời gian: từ {startStr} đến {endStr}</i>\n"
-    header += f"✍️ Tìm thấy <b>{len(messages)}</b> sự kiện trong khoảng thời gian này.\n"
+    header += f"📅 *Thời gian: từ {startStr} đến {endStr}*\n"
+    header += f"✍️ Tìm thấy **{len(messages)}** sự kiện trong khoảng thời gian này.\n"
     header += "━━━━━━━━━━━━━━━━━━"
     
-    bot.send_message(chatId, header, parse_mode="HTML")
+    notifier.send_message("discord", chatId, header)
 
-    from telebot import types
     for m in messages:
-        markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton(m['btnText'], callback_data=m['callback']))
-        bot.send_message(chatId, m['text'], parse_mode="HTML", reply_markup=markup, disable_web_page_preview=True)
+        task_id = m['callback'].split('_', 1)[1] if '_' in m['callback'] else m['callback']
+        action = "undone" if m['callback'].startswith('undone_') else "done"
+        final_text = m['text'] + f"\n\n👉 Dùng lệnh `/{action} {task_id}` để thay đổi trạng thái."
+        notifier.send_message("discord", chatId, final_text)
         time.sleep(0.3)
     return True
 

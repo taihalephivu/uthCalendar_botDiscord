@@ -89,12 +89,12 @@ def verifyAndSaveUser(chatId, mssv, password):
     if isValid:
         conn = db.getDbConn(); cur = conn.cursor()
         cur.execute(
-            "INSERT INTO users (chat_id, uth_user, uth_pass) VALUES (%s, %s, %s) ON CONFLICT (chat_id) DO UPDATE SET uth_user = EXCLUDED.uth_user, uth_pass = EXCLUDED.uth_pass",
+            "INSERT INTO users (chat_id, uth_user, uth_pass) VALUES (?, ?, ?) ON CONFLICT (chat_id) DO UPDATE SET uth_user = excluded.uth_user, uth_pass = excluded.uth_pass",
             (str(chatId), utils.encryptData(mssv), utils.encryptData(password))
         )
         conn.commit(); cur.close(); conn.close()
         utils.log("SUCCESS", f"User {chatId} đã đăng ký thành công")
-        return True, "🎉 <b>Đăng ký thành công!</b> Mình sẽ tự động nhắc lịch cho bạn."
+        return True, "🎉 **Đăng ký thành công!** Mình sẽ tự động nhắc lịch cho bạn."
     
     utils.log("ERROR", f"User {chatId} đăng ký thất bại: {reason}")
     return False, f"❌ Thất bại: {reason}"
@@ -135,7 +135,7 @@ def formatCalendarMessage(chatId, dateStr, isAuto=False):
         return f"❌ {error}"
     
     if classes:
-        header = f"🔔 <b>NHẮC LỊCH TỰ ĐỘNG ({dateStr})</b>\n" if isAuto else f"📅 <b>LỊCH HỌC {dateStr}</b>\n"
+        header = f"🔔 **NHẮC LỊCH TỰ ĐỘNG ({dateStr})**\n" if isAuto else f"📅 **LỊCH HỌC {dateStr}**\n"
         msg = header + "━━━━━━━━━━━━━━━━━━\n"
         for c in classes:
             courseLink = c.get('link', 'https://courses.ut.edu.vn/')
@@ -154,16 +154,16 @@ def formatCalendarMessage(chatId, dateStr, isAuto=False):
                 weatherData = utils.getWeatherByHour(target_cs, c['tuGio'], dateStr)
                 if weatherData:
                     weatherLabel = (
-                        f"\n🌡️ {target_cs} (<code>{c['tuGio']}</code>): "
+                        f"\n🌡️ {target_cs} (`{c['tuGio']}`): "
                         f"{weatherData['icon']} {weatherData['temp']}°C ({weatherData['desc']})"
                     )
 
-            msg += f"\n📘 <a href='{courseLink}'>{c['tenMonHoc']}</a>"
+            msg += f"\n📘 [{c['tenMonHoc']}]({courseLink})"
             msg += f"\n⏰ {c['tuGio']} - {c['denGio']}"
             msg += f"\n📍 {c['tenPhong']}"
             msg += weatherLabel
             msg += f"\n📌 {statusLabel}\n"
-        msg += f"\n🔗 <a href='https://portal.ut.edu.vn/'>Portal UTH</a>"
+        msg += f"\n🔗 [Portal UTH](https://portal.ut.edu.vn/)"
         return msg
     else:
         return f"🎉 Ngày {dateStr} bạn được nghỉ nè!"
@@ -181,7 +181,7 @@ def format_week_calendar_message(chat_id, startDateStr):
     data, error = get_classes_by_week(chat_id, raw_user, raw_pass, startDateStr)
     
     if data is False:
-        return f"❌ <b>Có lỗi xảy ra:</b>\n{error}"
+        return f"❌ **Có lỗi xảy ra:**\n{error}"
     
     if not data:
         return f"🎉 Tuần từ {monday.strftime('%d/%m')} bạn không có lịch học nào cả. Nghỉ ngơi nhé!"
@@ -193,20 +193,20 @@ def format_week_calendar_message(chat_id, startDateStr):
         if date_key in week_data:
             week_data[date_key].append(item)
 
-    msg = f"📅 <b>LỊCH HỌC CẢ TUẦN</b>\n"
-    msg += f"<i>(Từ {monday.strftime('%d/%m')} đến {(monday + timedelta(days=6)).strftime('%d/%m')})</i>\n"
+    msg = f"📅 **LỊCH HỌC CẢ TUẦN**\n"
+    msg += f"*(Từ {monday.strftime('%d/%m')} đến {(monday + timedelta(days=6)).strftime('%d/%m')})*\n"
     msg += "━━━━━━━━━━━━━━━━━━\n"
 
     day_names = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ Nhật"]
     
     for i, (date_str, classes) in enumerate(week_data.items()):
-        msg += f"\n📍 <b>{day_names[i]} ({date_str}):</b>\n"
+        msg += f"\n📍 **{day_names[i]} ({date_str}):**\n"
         
         if not classes:
-            msg += "   ╰ 🏝️ <i>Bạn được nghỉ</i>\n"
+            msg += "   ╰ 🏝️ *Bạn được nghỉ*\n"
         else:
             for c in classes:
-                status = " (🛑 <b>Tạm ngưng</b>)" if c.get("isTamNgung") else ""
+                status = " (🛑 **Tạm ngưng**)" if c.get("isTamNgung") else ""
                 courseLink = c.get('link') or 'https://courses.ut.edu.vn/'
                 
                 # --- Logic xác định cơ sở dựa trên code cũ của mày ---
@@ -219,9 +219,9 @@ def format_week_calendar_message(chat_id, startDateStr):
                 elif "CS2" in ten_phong or "Cơ sở 2" in co_so_display: target_cs = "CS2"
                 
                 # Nhúng link vào tên môn và thêm cơ sở ở sau
-                msg += f"   ╰ 📘 <code>{c['tuGio']}</code>: <a href='{courseLink}'>{c['tenMonHoc']}</a> ({target_cs}){status}\n"
+                msg += f"   ╰ 📘 `{c['tuGio']}`: [{c['tenMonHoc']}]({courseLink}) ({target_cs}){status}\n"
 
     msg += "\n━━━━━━━━━━━━━━━━━━\n"
-    msg += "💡 <i>Dùng 'Lịch hôm nay' để xem chi tiết phòng học và thời tiết bạn nhé!</i>"
+    msg += "💡 *Dùng lệnh `/lichhoc` để xem chi tiết phòng học và thời tiết bạn nhé!*"
     
     return msg

@@ -5,7 +5,6 @@ import os
 from datetime import datetime
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
-import threading
 import json
 import string
 import random
@@ -29,30 +28,7 @@ def decryptData(encryptedData):
     if not encryptedData: return None
     return cipherSuite.decrypt(encryptedData.encode()).decode()
 
-userTimers = {}
 
-def startStepTimeout(bot, chatId, seconds=60):
-    cancelStepTimeout(chatId)
-    
-    def timeoutCallback():
-        try:
-            bot.clear_step_handler_by_chat_id(chatId)
-            bot.send_message(chatId, "⏰ <b>Hết thời gian!</b>\nLệnh của bạn đã bị hủy do quá lâu không có phản hồi.", parse_mode="HTML")
-            log("TIMEOUT", f"Đã hủy lệnh chờ của user {chatId} do hết thời gian.")
-        except Exception as e:
-            log("ERROR", f"Lỗi khi xử lý timeout: {e}")
-        finally:
-            if chatId in userTimers:
-                del userTimers[chatId]
-
-    timer = threading.Timer(seconds, timeoutCallback)
-    timer.start()
-    userTimers[chatId] = timer
-
-def cancelStepTimeout(chatId):
-    if chatId in userTimers:
-        userTimers[chatId].cancel()
-        del userTimers[chatId]
 
 def getWeatherByHour(campusCode, targetTimeStr, dateStr):
     import redisManager

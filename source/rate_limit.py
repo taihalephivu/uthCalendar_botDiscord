@@ -1,7 +1,7 @@
 import redisManager
 from utils import log
 import math
-from functools import wraps
+
 
 LIMIT_MIN = 10
 LIMIT_HOUR = 50
@@ -63,19 +63,4 @@ def incr_with_ttl(key, ttl):
     if val == 1:
         redisManager.redisClient.expire(key, ttl)
     return val
-
-def ratelimit_handler(bot):
-    def decorator(func):
-        @wraps(func)
-        def wrapped(message, *args, **kwargs):
-            chat_id = message.chat.id
-            # Gọi lại hàm check_spam cũ của mày
-            is_allowed, msg = check_spam(chat_id)
-            
-            if not is_allowed:
-                bot.reply_to(message, msg, parse_mode="Markdown")
-                return # Chặn đứng, không cho chạy vào hàm xử lý chính
-            
-            return func(message, *args, **kwargs)
-        return wrapped
-    return decorator
+
