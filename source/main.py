@@ -21,9 +21,8 @@ else:
     log("WARN", "Thiếu WEATHER_API_KEY. Hủy bỏ chức năng thời tiết.")
 
 def runScheduler():
-    schedule.every().day.at("05:00").do(cronService.autoCheckAndNotify)
-    schedule.every().day.at("12:00").do(cronService.autoCheckAndNotify)
-    schedule.every().day.at("17:00").do(cronService.autoCheckAndNotify)
+    schedule.every().day.at("21:00").do(cronService.notifyTomorrowClasses)
+    schedule.every().day.at("01:00").do(cronService.scheduleTodayClasses)
     schedule.every().monday.at("19:00").do(cronService.autoScanAllUsers)
     while True:
         schedule.run_pending()

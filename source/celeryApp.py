@@ -17,9 +17,14 @@ app.conf.update(
         'tasks.portalTask': {'queue': 'high_priority'},
         'tasks.deadlineTask': {'queue': 'high_priority'},
         'tasks.registrationTask': {'queue': 'high_priority'},
+        'tasks.notifySingleClassTask': {'queue': 'high_priority'},
+        'tasks.customDeadlineTask': {'queue': 'high_priority'},
+        'tasks.portalWeekTask': {'queue': 'high_priority'},
         
         'tasks.periodicPortalTask': {'queue': 'low_priority'},
         'tasks.periodicCourseTask': {'queue': 'low_priority'},
+        'tasks.scheduleClassRemindersTask': {'queue': 'low_priority'},
+        'tasks.updateWeatherTask': {'queue': 'low_priority'},
     }
 )
 

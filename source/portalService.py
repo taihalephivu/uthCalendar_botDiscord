@@ -123,7 +123,7 @@ def getValidPortalToken(chatId, rawUser, rawPass):
         utils.log("ERROR", f"Lỗi Server Portal: {e}")
     return None
 
-def formatCalendarMessage(chatId, dateStr, isAuto=False):
+def formatCalendarMessage(chatId, dateStr, isAuto=False, isTomorrow=False):
     u = db.getUserCredentials(chatId)
     if not u: return "Bạn chưa đăng ký tài khoản!"
     
@@ -135,7 +135,13 @@ def formatCalendarMessage(chatId, dateStr, isAuto=False):
         return f"❌ {error}"
     
     if classes:
-        header = f"🔔 **NHẮC LỊCH TỰ ĐỘNG ({dateStr})**\n" if isAuto else f"📅 **LỊCH HỌC {dateStr}**\n"
+        if isTomorrow:
+            header = f"🔔 **NHẮC LỊCH HỌC NGÀY MAI ({dateStr})**\n"
+        elif isAuto:
+            header = f"🔔 **NHẮC LỊCH TỰ ĐỘNG ({dateStr})**\n"
+        else:
+            header = f"📅 **LỊCH HỌC {dateStr}**\n"
+            
         msg = header + "━━━━━━━━━━━━━━━━━━\n"
         for c in classes:
             courseLink = c.get('link', 'https://courses.ut.edu.vn/')
@@ -166,7 +172,39 @@ def formatCalendarMessage(chatId, dateStr, isAuto=False):
         msg += f"\n🔗 [Portal UTH](https://portal.ut.edu.vn/)"
         return msg
     else:
+        if isAuto:
+            return None
         return f"🎉 Ngày {dateStr} bạn được nghỉ nè!"
+
+def formatSingleClassMessage(c, dateStr):
+    header = f"⏰ **NHẮC NHỞ: CÒN 1 TIẾNG NỮA VÀO HỌC!**\n"
+    msg = header + "━━━━━━━━━━━━━━━━━━\n"
+    courseLink = c.get('link', 'https://courses.ut.edu.vn/')
+    statusLabel = "🛑 Tạm ngưng" if c.get("isTamNgung") else "🟢 Bình thường"
+
+    weatherLabel = ""
+    target_cs = None
+    ten_phong = c.get('tenPhong', '')
+    co_so_display = c.get('coSoToDisplay', '')
+    
+    if "CS1" in ten_phong or "Cơ sở 1" in co_so_display: target_cs = "CS1"
+    elif "CS3" in ten_phong or "Cơ sở 3" in co_so_display: target_cs = "CS3"
+    elif "CS2" in ten_phong or "Cơ sở 2" in co_so_display: target_cs = "CS2"
+    
+    if target_cs:
+        weatherData = utils.getWeatherByHour(target_cs, c['tuGio'], dateStr)
+        if weatherData:
+            weatherLabel = (
+                f"\n🌡️ Thời tiết: "
+                f"{weatherData['icon']} {weatherData['temp']}°C ({weatherData['desc']})"
+            )
+
+    msg += f"📘 [{c['tenMonHoc']}]({courseLink})"
+    msg += f"\n⏰ {c['tuGio']} - {c['denGio']}"
+    msg += f"\n📍 {c['tenPhong']}"
+    msg += weatherLabel
+    msg += f"\n📌 {statusLabel}\n"
+    return msg
     
 def format_week_calendar_message(chat_id, startDateStr):
     u = db.getUserCredentials(chat_id)

@@ -83,8 +83,6 @@ def portalWeekTask(self, chatId, startDateStr):
     retry_kwargs={'max_retries': 3, 'countdown': 60}
 )
 def periodicCourseTask(self, chatId):
-    sendWorkerCheckIn(self, chatId)
-
     log("WORKER", f"Đang quét deadline cho user: {chatId}")
     courseService.scanAllDeadlines(chatId, isManual=False)
 
@@ -95,13 +93,51 @@ def periodicCourseTask(self, chatId):
     queue='low_priority', 
     rate_limit='1/s'
 )
-def periodicPortalTask(self, chatId, dateStr):
-    sendWorkerCheckIn(self, chatId)
-
+def periodicPortalTask(self, chatId, dateStr, isTomorrow=False):
     log("WORKER", f"Đang quét lịch cho user: {chatId}")
-    msg = portalService.formatCalendarMessage(chatId, dateStr, isAuto=True)
+    msg = portalService.formatCalendarMessage(chatId, dateStr, isAuto=True, isTomorrow=isTomorrow)
     if msg:
         notifier.send_message("discord", chatId, msg)
+
+@app.task(
+    bind=True,
+    name='tasks.scheduleClassRemindersTask',
+    queue='low_priority'
+)
+def scheduleClassRemindersTask(self, chatId, dateStr):
+    from datetime import timedelta
+    log("WORKER", f"Đang lên lịch báo trước 1 tiếng cho user: {chatId}")
+    u = db.getUserCredentials(chatId)
+    if not u: return
+    
+    rawUser = utils.decryptData(u['uth_user'])
+    rawPass = utils.decryptData(u['uth_pass'])
+
+    classes, error = portalService.getClassesByDate(chatId, rawUser, rawPass, dateStr)
+    if not classes: return
+    
+    for c in classes:
+        tuGioStr = c.get('tuGio')
+        if not tuGioStr: continue
+        
+        try:
+            dtStr = f"{dateStr} {tuGioStr}"
+            classTime = datetime.strptime(dtStr, "%d/%m/%Y %H:%M")
+            notifyTime = classTime - timedelta(hours=1)
+            
+            if notifyTime > datetime.now():
+                notifySingleClassTask.apply_async(args=[chatId, c, dateStr], eta=notifyTime)
+        except Exception as e:
+            log("ERROR", f"Lỗi parse time lên lịch 1 tiếng: {e}")
+
+@app.task(
+    bind=True,
+    name='tasks.notifySingleClassTask',
+    queue='high_priority'
+)
+def notifySingleClassTask(self, chatId, classData, dateStr):
+    msg = portalService.formatSingleClassMessage(classData, dateStr)
+    notifier.send_message("discord", chatId, msg)
 
 @app.task(
     name='tasks.updateWeatherTask',
