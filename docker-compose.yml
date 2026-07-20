@@ -34,6 +34,7 @@ services:
 
   # Discord Bot
   uth_bot:
+    build: .
     image: vanphat111/uth-calendar:latest
     container_name: uth_calendar_bot
     restart: unless-stopped
@@ -52,9 +53,12 @@ services:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - WEATHER_API_KEY=${WEATHER_API_KEY}
       - WARP_PROXY_URL=socks5://uth_warp:1080
+      - CELERY_BROKER_URL=redis://uth_redis:6379/0
+      - DB_PATH=data/database.sqlite3
 
   # Worker VIP - Chỉ xử lý hàng ưu tiên
   worker_vip:
+    build: .
     image: vanphat111/uth-calendar:latest
     hostname: VIP_Worker
     restart: unless-stopped
@@ -74,9 +78,12 @@ services:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - WEATHER_API_KEY=${WEATHER_API_KEY}
       - WARP_PROXY_URL=socks5://uth_warp:1080
+      - CELERY_BROKER_URL=redis://uth_redis:6379/0
+      - DB_PATH=data/database.sqlite3
 
   # Worker Low - Xử lý đa nhiệm
   worker_low:
+    build: .
     image: vanphat111/uth-calendar:latest
     hostname: Low_Worker
     restart: unless-stopped
@@ -96,9 +103,12 @@ services:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - WEATHER_API_KEY=${WEATHER_API_KEY}
       - WARP_PROXY_URL=socks5://uth_warp:1080
+      - CELERY_BROKER_URL=redis://uth_redis:6379/0
+      - DB_PATH=data/database.sqlite3
 
   # Celery Beat - Lập lịch định kỳ
   celery_beat:
+    build: .
     image: vanphat111/uth-calendar:latest
     container_name: uth_celery_beat
     restart: unless-stopped
@@ -113,6 +123,8 @@ services:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - WEATHER_API_KEY=${WEATHER_API_KEY}
+      - CELERY_BROKER_URL=redis://uth_redis:6379/0
+      - DB_PATH=data/database.sqlite3
 
   # Flower - Giám sát Celery
   flower:
