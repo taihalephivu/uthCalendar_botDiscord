@@ -50,6 +50,9 @@ def get_classes_by_week(chat_id, user, password, targetDate):
         url = f"https://portal.ut.edu.vn/api/v1/lichhoc/lichTuan?date={iso_date}"
         res = utils.safeRequest("GET", url, headers=headers)
 
+        if res is None:
+            return False, "Trang web trường đang quá tải hoặc không phản hồi (Timeout)."
+
         if res.status_code == 401:
             utils.log("WARN", f"Token của {chat_id} bị Invalid khi lấy lịch tuần. Đang login lại...")
             tk = redisManager.loginAndSaveToken(chat_id, user, password)
@@ -94,10 +97,10 @@ def verifyAndSaveUser(chatId, mssv, password):
         )
         conn.commit(); cur.close(); conn.close()
         utils.log("SUCCESS", f"User {chatId} đã đăng ký thành công")
-        return True, "🎉 **Đăng ký thành công!** Mình sẽ tự động nhắc lịch cho bạn."
+        return True, "**Đăng ký thành công!** Mình sẽ tự động nhắc lịch cho bạn."
     
     utils.log("ERROR", f"User {chatId} đăng ký thất bại: {reason}")
-    return False, f"❌ Thất bại: {reason}"
+    return False, f"**Thất bại:** {reason}"
 
 def getValidPortalToken(chatId, rawUser, rawPass):
     cachedToken = redisManager.getSession(chatId, 'portal')
@@ -132,20 +135,20 @@ def formatCalendarMessage(chatId, dateStr, isAuto=False, isTomorrow=False):
 
     classes, error = getClassesByDate(chatId, rawUser, rawPass, dateStr)
     if classes is False:
-        return f"❌ {error}"
+        return f"**Lỗi:** {error}"
     
     if classes:
         if isTomorrow:
-            header = f"🔔 **NHẮC LỊCH HỌC NGÀY MAI ({dateStr})**\n"
+            header = f"**NHẮC LỊCH HỌC NGÀY MAI ({dateStr})**\n"
         elif isAuto:
-            header = f"🔔 **NHẮC LỊCH TỰ ĐỘNG ({dateStr})**\n"
+            header = f"**NHẮC LỊCH TỰ ĐỘNG ({dateStr})**\n"
         else:
-            header = f"📅 **LỊCH HỌC {dateStr}**\n"
+            header = f"**LỊCH HỌC {dateStr}**\n"
             
         msg = header + "━━━━━━━━━━━━━━━━━━\n"
         for c in classes:
             courseLink = c.get('link', 'https://courses.ut.edu.vn/')
-            statusLabel = "🛑 Tạm ngưng" if c.get("isTamNgung") else "🟢 Bình thường"
+            statusLabel = "Tạm ngưng" if c.get("isTamNgung") else "Bình thường"
 
             weatherLabel = ""
             target_cs = None
@@ -160,27 +163,27 @@ def formatCalendarMessage(chatId, dateStr, isAuto=False, isTomorrow=False):
                 weatherData = utils.getWeatherByHour(target_cs, c['tuGio'], dateStr)
                 if weatherData:
                     weatherLabel = (
-                        f"\n🌡️ {target_cs} (`{c['tuGio']}`): "
-                        f"{weatherData['icon']} {weatherData['temp']}°C ({weatherData['desc']})"
+                        f"\nThời tiết {target_cs} (`{c['tuGio']}`): "
+                        f"{weatherData['temp']}°C, {weatherData['desc']}"
                     )
 
-            msg += f"\n📘 [{c['tenMonHoc']}]({courseLink})"
-            msg += f"\n⏰ {c['tuGio']} - {c['denGio']}"
-            msg += f"\n📍 {c['tenPhong']}"
+            msg += f"\n[{c['tenMonHoc']}]({courseLink})"
+            msg += f"\nThời gian: {c['tuGio']} - {c['denGio']}"
+            msg += f"\nPhòng: {c['tenPhong']}"
             msg += weatherLabel
-            msg += f"\n📌 {statusLabel}\n"
-        msg += f"\n🔗 [Portal UTH](https://portal.ut.edu.vn/)"
+            msg += f"\nTrạng thái: {statusLabel}\n"
+        msg += f"\n[Portal UTH](https://portal.ut.edu.vn/)"
         return msg
     else:
         if isAuto:
             return None
-        return f"🎉 Ngày {dateStr} bạn được nghỉ nè!"
+        return f"**Thông báo**\nNgày {dateStr} bạn không có lịch học."
 
 def formatSingleClassMessage(c, dateStr):
-    header = f"⏰ **NHẮC NHỞ: CÒN 1 TIẾNG NỮA VÀO HỌC!**\n"
+    header = f"**NHẮC NHỞ: CÒN 1 TIẾNG NỮA VÀO HỌC!**\n"
     msg = header + "━━━━━━━━━━━━━━━━━━\n"
     courseLink = c.get('link', 'https://courses.ut.edu.vn/')
-    statusLabel = "🛑 Tạm ngưng" if c.get("isTamNgung") else "🟢 Bình thường"
+    statusLabel = "Tạm ngưng" if c.get("isTamNgung") else "Bình thường"
 
     weatherLabel = ""
     target_cs = None
@@ -195,20 +198,20 @@ def formatSingleClassMessage(c, dateStr):
         weatherData = utils.getWeatherByHour(target_cs, c['tuGio'], dateStr)
         if weatherData:
             weatherLabel = (
-                f"\n🌡️ Thời tiết: "
-                f"{weatherData['icon']} {weatherData['temp']}°C ({weatherData['desc']})"
+                f"\nThời tiết: "
+                f"{weatherData['temp']}°C, {weatherData['desc']}"
             )
 
-    msg += f"📘 [{c['tenMonHoc']}]({courseLink})"
-    msg += f"\n⏰ {c['tuGio']} - {c['denGio']}"
-    msg += f"\n📍 {c['tenPhong']}"
+    msg += f"[{c['tenMonHoc']}]({courseLink})"
+    msg += f"\nThời gian: {c['tuGio']} - {c['denGio']}"
+    msg += f"\nPhòng: {c['tenPhong']}"
     msg += weatherLabel
-    msg += f"\n📌 {statusLabel}\n"
+    msg += f"\nTrạng thái: {statusLabel}\n"
     return msg
     
 def format_week_calendar_message(chat_id, startDateStr):
     u = db.getUserCredentials(chat_id)
-    if not u: return "⚠️ Bạn chưa đăng ký tài khoản!"
+    if not u: return "**Lỗi**\nBạn chưa đăng ký tài khoản!"
 
     raw_user = utils.decryptData(u['uth_user'])
     raw_pass = utils.decryptData(u['uth_pass'])
@@ -219,10 +222,10 @@ def format_week_calendar_message(chat_id, startDateStr):
     data, error = get_classes_by_week(chat_id, raw_user, raw_pass, startDateStr)
     
     if data is False:
-        return f"❌ **Có lỗi xảy ra:**\n{error}"
+        return f"**Có lỗi xảy ra:**\n{error}"
     
     if not data:
-        return f"🎉 Tuần từ {monday.strftime('%d/%m')} bạn không có lịch học nào cả. Nghỉ ngơi nhé!"
+        return f"**Thông báo**\nTuần từ {monday.strftime('%d/%m')} bạn không có lịch học."
 
     week_data = { (monday + timedelta(days=i)).strftime("%d/%m/%Y"): [] for i in range(7) }
     
@@ -231,20 +234,20 @@ def format_week_calendar_message(chat_id, startDateStr):
         if date_key in week_data:
             week_data[date_key].append(item)
 
-    msg = f"📅 **LỊCH HỌC CẢ TUẦN**\n"
-    msg += f"*(Từ {monday.strftime('%d/%m')} đến {(monday + timedelta(days=6)).strftime('%d/%m')})*\n"
+    msg = f"**LỊCH HỌC CẢ TUẦN**\n"
+    msg += f"Từ {monday.strftime('%d/%m')} đến {(monday + timedelta(days=6)).strftime('%d/%m')}\n"
     msg += "━━━━━━━━━━━━━━━━━━\n"
 
     day_names = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ Nhật"]
     
     for i, (date_str, classes) in enumerate(week_data.items()):
-        msg += f"\n📍 **{day_names[i]} ({date_str}):**\n"
+        msg += f"\n**{day_names[i]} ({date_str}):**\n"
         
         if not classes:
-            msg += "   ╰ 🏝️ *Bạn được nghỉ*\n"
+            msg += "   ╰ Bạn được nghỉ\n"
         else:
             for c in classes:
-                status = " (🛑 **Tạm ngưng**)" if c.get("isTamNgung") else ""
+                status = " (**Tạm ngưng**)" if c.get("isTamNgung") else ""
                 courseLink = c.get('link') or 'https://courses.ut.edu.vn/'
                 
                 # --- Logic xác định cơ sở dựa trên code cũ của mày ---
@@ -257,9 +260,9 @@ def format_week_calendar_message(chat_id, startDateStr):
                 elif "CS2" in ten_phong or "Cơ sở 2" in co_so_display: target_cs = "CS2"
                 
                 # Nhúng link vào tên môn và thêm cơ sở ở sau
-                msg += f"   ╰ 📘 `{c['tuGio']}`: [{c['tenMonHoc']}]({courseLink}) ({target_cs}){status}\n"
+                msg += f"   ╰ `{c['tuGio']}`: [{c['tenMonHoc']}]({courseLink}) ({target_cs}){status}\n"
 
     msg += "\n━━━━━━━━━━━━━━━━━━\n"
-    msg += "💡 *Dùng lệnh `/lichhoc` để xem chi tiết phòng học và thời tiết bạn nhé!*"
+    msg += "Dùng lệnh `/lichhoc` để xem chi tiết phòng học và thời tiết."
     
     return msg

@@ -18,6 +18,7 @@ def initDb():
     log("SYSTEM", "Bắt đầu kiểm tra và khởi tạo Database (SQLite)...")
     try:
         conn = getDbConn(); cur = conn.cursor()
+        cur.execute("PRAGMA journal_mode=WAL;")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 chat_id TEXT PRIMARY KEY, 
@@ -29,46 +30,12 @@ def initDb():
             );
         """)
 
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS completed_tasks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                chat_id TEXT NOT NULL,
-                task_id TEXT NOT NULL,
-                completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(chat_id, task_id)
-            );
-        """)
-        
         conn.commit(); cur.close(); conn.close()
         log("INFO", "Hệ thống Database (SQLite) đã sẵn sàng.")
         return
     except Exception as e:
         log("ERROR", f"Lỗi khởi tạo DB: {e}")
 
-def getCompletedTaskIds(chatId):
-    try:
-        conn = getDbConn(); cur = conn.cursor()
-        cur.execute("SELECT task_id FROM completed_tasks WHERE chat_id = ?", (str(chatId),))
-        res = [row[0] for row in cur.fetchall()]
-        cur.close(); conn.close()
-        return res
-    except: return []
-
-def markTaskCompleted(chatId, taskId):
-    try:
-        conn = getDbConn(); cur = conn.cursor()
-        cur.execute("INSERT OR IGNORE INTO completed_tasks (chat_id, task_id) VALUES (?, ?)", (str(chatId), str(taskId)))
-        conn.commit(); cur.close(); conn.close()
-        return True
-    except: return False
-
-def unmarkTaskCompleted(chatId, taskId):
-    try:
-        conn = getDbConn(); cur = conn.cursor()
-        cur.execute("DELETE FROM completed_tasks WHERE chat_id = ? AND task_id = ?", (str(chatId), str(taskId)))
-        conn.commit(); cur.close(); conn.close()
-        return True
-    except: return False
 
 def getUserCredentials(chatId):
     try:
@@ -89,7 +56,9 @@ def updateDeadlineStatus(chatId, status):
         cur.execute("UPDATE users SET notify_deadline = ? WHERE chat_id = ?", (status_int, str(chatId)))
         conn.commit(); cur.close(); conn.close()
         return True
-    except: return False
+    except Exception as e:
+        log("ERROR", f"Lỗi DB updateDeadlineStatus: {e}")
+        return False
 
 def updateNotifyStatus(chatId, newStatus):
     status_int = 1 if newStatus else 0
@@ -98,7 +67,9 @@ def updateNotifyStatus(chatId, newStatus):
         cur.execute("UPDATE users SET notify_enabled = ? WHERE chat_id = ?", (status_int, str(chatId)))
         conn.commit(); cur.close(); conn.close()
         return True
-    except: return False        
+    except Exception as e:
+        log("ERROR", f"Lỗi DB updateNotifyStatus: {e}")
+        return False        
 
 def getDeadlineStatus(chatId):
     try:
@@ -106,7 +77,9 @@ def getDeadlineStatus(chatId):
         cur.execute("SELECT notify_deadline FROM users WHERE chat_id = ?", (str(chatId),))
         res = cur.fetchone(); cur.close(); conn.close()
         return bool(res[0]) if res else True
-    except: return True
+    except Exception as e:
+        log("ERROR", f"Lỗi DB getDeadlineStatus: {e}")
+        return True
 
 def getUsersForPortalNotify():
     try:
@@ -133,3 +106,14 @@ def getUsersForDeadlineNotify():
     except Exception as e:
         log("ERROR", f"Lỗi lấy list Deadline Notify: {e}")
         return []
+
+def deleteUser(chatId):
+    try:
+        conn = getDbConn(); cur = conn.cursor()
+        cur.execute("DELETE FROM users WHERE chat_id = ?", (str(chatId),))
+        conn.commit(); cur.close(); conn.close()
+        log("INFO", f"Đã xóa tài khoản user {chatId}")
+        return True
+    except Exception as e:
+        log("ERROR", f"Lỗi DB deleteUser: {e}")
+        return False

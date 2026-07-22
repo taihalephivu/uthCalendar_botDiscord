@@ -25,14 +25,20 @@ async def on_ready():
 @bot.tree.command(name="login", description="Đăng nhập tài khoản UTH")
 @app_commands.describe(mssv="Mã số sinh viên", password="Mật khẩu portal")
 async def login(interaction: discord.Interaction, mssv: str, password: str):
-    await interaction.response.send_message("⏳ Đang gửi yêu cầu đăng nhập...", ephemeral=True)
+    await interaction.response.send_message("Đang gửi yêu cầu đăng nhập...", ephemeral=True)
     user_id = str(interaction.user.id)
     task.registrationTask.delay(user_id, mssv, password)
+
+@bot.tree.command(name="logout", description="Đăng xuất và xóa toàn bộ dữ liệu tài khoản")
+async def logout(interaction: discord.Interaction):
+    await interaction.response.send_message("Đang xử lý đăng xuất...", ephemeral=True)
+    user_id = str(interaction.user.id)
+    task.logoutTask.delay(user_id)
 
 @bot.tree.command(name="lichhoc", description="Xem lịch học theo ngày")
 @app_commands.describe(date_str="Ngày cần xem (dd/mm/yyyy), mặc định là hôm nay")
 async def lichhoc(interaction: discord.Interaction, date_str: str = None):
-    await interaction.response.send_message("⏳ Đang tra cứu lịch học...", ephemeral=True)
+    await interaction.response.send_message("Đang tra cứu lịch học...", ephemeral=True)
     user_id = str(interaction.user.id)
     if not date_str:
         import time
@@ -42,7 +48,7 @@ async def lichhoc(interaction: discord.Interaction, date_str: str = None):
 @bot.tree.command(name="lichtuan", description="Xem lịch học theo tuần")
 @app_commands.describe(start_date="Ngày trong tuần cần xem (dd/mm/yyyy), mặc định là tuần này")
 async def lichtuan(interaction: discord.Interaction, start_date: str = None):
-    await interaction.response.send_message("⏳ Đang tra cứu lịch tuần...", ephemeral=True)
+    await interaction.response.send_message("Đang tra cứu lịch tuần...", ephemeral=True)
     user_id = str(interaction.user.id)
     if not start_date:
         import time
@@ -51,23 +57,10 @@ async def lichtuan(interaction: discord.Interaction, start_date: str = None):
 
 @bot.tree.command(name="deadline", description="Quét các bài tập chưa hoàn thành")
 async def deadline(interaction: discord.Interaction):
-    await interaction.response.send_message("⏳ Đang quét deadline...", ephemeral=True)
+    await interaction.response.send_message("Đang quét deadline...", ephemeral=True)
     user_id = str(interaction.user.id)
     task.deadlineTask.delay(user_id)
 
-@bot.tree.command(name="done", description="Đánh dấu bài tập đã hoàn thành")
-@app_commands.describe(task_id="ID của bài tập")
-async def done(interaction: discord.Interaction, task_id: str):
-    user_id = str(interaction.user.id)
-    db.markTaskCompleted(user_id, task_id)
-    await interaction.response.send_message(f"✅ Đã đánh dấu hoàn thành bài tập ID: `{task_id}`")
-
-@bot.tree.command(name="undone", description="Bỏ đánh dấu hoàn thành bài tập")
-@app_commands.describe(task_id="ID của bài tập")
-async def undone(interaction: discord.Interaction, task_id: str):
-    user_id = str(interaction.user.id)
-    db.unmarkTaskCompleted(user_id, task_id)
-    await interaction.response.send_message(f"❌ Đã bỏ đánh dấu hoàn thành bài tập ID: `{task_id}`")
 
 def run():
     bot.run(os.getenv("DISCORD_TOKEN"))

@@ -129,20 +129,6 @@ services:
       - CELERY_BROKER_URL=redis://uth_redis:6379/0
       - DB_PATH=data/database.sqlite3
 
-  # Flower - Giám sát Celery (Đã tắt để tiết kiệm RAM)
-  # flower:
-  #   image: mher/flower:latest
-  #   container_name: uth_flower
-  #   restart: unless-stopped
-  #   environment:
-  #     - CELERY_BROKER_URL=redis://uth_redis:6379/0
-  #   ports:
-  #     - "5555:5555"
-  #   depends_on:
-  #     - uth_redis
-  #   networks:
-  #     - uth-network
-
 volumes:
   redis_data:
   uth_warp_data:

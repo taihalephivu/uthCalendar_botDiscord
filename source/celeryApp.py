@@ -33,4 +33,16 @@ app.conf.beat_schedule = {
         'task': 'tasks.updateWeatherTask',
         'schedule': crontab(minute=0, hour='4-22'),
     },
+    'notify-tomorrow-classes': {
+        'task': 'tasks.cron_notifyTomorrowClasses',
+        'schedule': crontab(minute=0, hour=21),
+    },
+    'schedule-today-classes': {
+        'task': 'tasks.cron_scheduleTodayClasses',
+        'schedule': crontab(minute=0, hour=1),
+    },
+    'scan-deadlines-weekly': {
+        'task': 'tasks.cron_autoScanAllUsers',
+        'schedule': crontab(minute=0, hour=19, day_of_week=1),
+    },
 }

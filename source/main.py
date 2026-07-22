@@ -1,8 +1,8 @@
 # Copyright (c) 2026 vanphat111 <phathovan14122006@email.com> | All rights reserved
 # main.py
 
-import os, threading, schedule, time, sys
-import cronService, database as db
+import os, sys
+import database as db
 import task
 from utils import log
 import discordBot
@@ -20,13 +20,7 @@ if weather_enabled:
 else:
     log("WARN", "Thiếu WEATHER_API_KEY. Hủy bỏ chức năng thời tiết.")
 
-def runScheduler():
-    schedule.every().day.at("21:00").do(cronService.notifyTomorrowClasses)
-    schedule.every().day.at("01:00").do(cronService.scheduleTodayClasses)
-    schedule.every().monday.at("19:00").do(cronService.autoScanAllUsers)
-    while True:
-        schedule.run_pending()
-        time.sleep(30)
+# cron jobs moved to Celery Beat
 
 if __name__ == "__main__":
     db.initDb()
@@ -34,9 +28,6 @@ if __name__ == "__main__":
     if weather_enabled:
         task.updateWeatherTask.delay()
     
-    # Chạy Cron Scheduler ở 1 thread riêng
-    threading.Thread(target=runScheduler, daemon=True).start()
-
     # Chạy Discord Bot ở thread chính
     log("SYSTEM", "Đang khởi động bot Discord...")
     discordBot.run()

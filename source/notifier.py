@@ -33,8 +33,8 @@ def send_discord_message(user_id, text, photo_url=None):
         }
         
         lines = text.strip().split('\n')
-        # Lấy dòng đầu làm Tiêu đề nếu nó chứa icon biểu tượng
-        if len(lines) > 1 and any(icon in lines[0] for icon in ['📅', '🔔', '🎉', '❌', '✅']):
+        # Lấy dòng đầu làm Tiêu đề nếu nó được bọc trong **
+        if len(lines) > 1 and '**' in lines[0]:
             embed["title"] = lines[0].replace('**', '').strip()
             
             content_lines = lines[1:]

@@ -118,41 +118,19 @@ def fetchMoodleSession(username, password):
             utils.log("ERROR", f"Lỗi login Moodle: {e}")
             return None, None
 
-def prepareMonthlyPayload(startDate, numDays):
+def prepareActionEventsPayload(startDate, numDays):
     now_ts = int(startDate.timestamp())
     end_ts = now_ts + (numDays * 24 * 60 * 60)
-    endDate = datetime.fromtimestamp(end_ts)
     
     payload = [{
         "index": 0,
-        "methodname": "core_calendar_get_calendar_monthly_view",
+        "methodname": "core_calendar_get_action_events_by_timesort",
         "args": {
-            "year": str(startDate.year), "month": str(startDate.month),
-            "courseid": 1, "day": 1, "view": "month"
+            "timesortfrom": now_ts,
+            "timesortto": end_ts,
+            "limitnum": 50
         }
     }]
-
-    currentYear = startDate.year
-    currentMonth = startDate.month
-    index = 1
-
-    while (currentYear, currentMonth) != (endDate.year, endDate.month):
-        if currentMonth == 12:
-            currentMonth = 1
-            currentYear += 1
-        else:
-            currentMonth += 1
-
-        payload.append({
-            "index": index,
-            "methodname": "core_calendar_get_calendar_monthly_view",
-            "args": {
-                "year": str(currentYear), "month": str(currentMonth),
-                "courseid": 1, "day": 1, "view": "month"
-            }
-        })
-
-        index += 1
 
     return payload, now_ts, end_ts
 
@@ -160,7 +138,7 @@ def getDeadlineMessages(chatId, cookieDict, sesskey, startDate=None, numDays=7):
     if startDate is None:
         startDate = datetime.now()
         
-    payload, startTs, endTs = prepareMonthlyPayload(startDate, numDays)
+    payload, startTs, endTs = prepareActionEventsPayload(startDate, numDays)
     url = f"https://courses.ut.edu.vn/lib/ajax/service.php?sesskey={sesskey}"
     
     with requests.Session(impersonate="chrome") as s:
@@ -185,38 +163,31 @@ def getDeadlineMessages(chatId, cookieDict, sesskey, startDate=None, numDays=7):
                 return None
             
             allEvents = []
-            completedIds = db.getCompletedTaskIds(chatId)
 
             for res in responses:
                 if res.get('error'): continue
-                for week in res['data']['weeks']:
-                    for day in week['days']:
-                        for event in day['events']:
-                            if startTs <= event['timesort'] <= endTs:
-                                if not any(e['id'] == event['id'] for e in allEvents):
-                                    allEvents.append(event)
+                if 'data' in res and 'events' in res['data']:
+                    for event in res['data']['events']:
+                        if not any(e['id'] == event['id'] for e in allEvents):
+                            allEvents.append(event)
             
             allEvents.sort(key=lambda x: x['timesort'])
             
             msgList = []
             for e in allEvents:
-                dueDt = datetime.fromtimestamp(e['timesort']) + timedelta(hours=7, minutes=-30)
+                dueDt = datetime.fromtimestamp(e['timesort'])
                 dueStr = dueDt.strftime('%d/%m/%Y %H:%M')
-                isDone = str(e['id']) in completedIds
-                status = "✅ Đã xong" if isDone else "❌ Chưa xong"
                 
                 text = (
-                    f"🔔 **[{e['name']}]({e.get('url')})**\n"
+                    f"**[{e['name']}]({e.get('url')})**\n"
                     f"━━━━━━━━━━━━━━━━━━\n"
-                    f"📝 **Trạng thái:** {status}\n"
-                    f"📚 **Môn:** {e['course']['fullname']}\n"
-                    f"⏰ **Hạn:** `{dueStr}`"
+                    f"Trạng thái: Chưa hoàn thành\n"
+                    f"Môn học: {e['course']['fullname']}\n"
+                    f"Hạn nộp: `{dueStr}`"
                 )
 
                 msgList.append({
-                    "text": text,
-                    "callback": f"undone_{e['id']}" if isDone else f"done_{e['id']}",
-                    "btnText": "❌ Đánh dấu chưa xong" if isDone else "✅ Đánh dấu hoàn thành"
+                    "text": text
                 })
             return msgList
 
@@ -234,7 +205,7 @@ def scanAllDeadlines(chatId, isManual=False, startDate=None, numDays=7):
     session, sesskey = getValidCourseSession(chatId, rawUser, rawPass)
     
     if not session or not sesskey:
-        if isManual: notifier.send_message("discord", chatId, "❌ Không thể kết nối hệ thống Courses.")
+        if isManual: notifier.send_message("discord", chatId, "**Lỗi**\nKhông thể kết nối hệ thống Courses.")
         return False
 
     messages = getDeadlineMessages(chatId, session, sesskey, startDate=startDate, numDays=numDays)
@@ -252,13 +223,13 @@ def scanAllDeadlines(chatId, isManual=False, startDate=None, numDays=7):
             messages = getDeadlineMessages(chatId, session, sesskey, startDate=startDate, numDays=numDays)
 
     if messages is None:
-        notifier.send_message("discord", chatId, "❌ Không thể lấy danh sách deadline.")
+        notifier.send_message("discord", chatId, "**Lỗi**\nKhông thể lấy danh sách deadline.")
         return False
 
             
     if len(messages) == 0:
         if isManual:
-            notifier.send_message("discord", chatId, "🎉 **Tuyệt vời!**\nBạn không có deadline nào trong khoảng thời gian này. Nghỉ ngơi thôi!")
+            notifier.send_message("discord", chatId, "**Hoàn tất**\nBạn không có deadline nào trong khoảng thời gian này. Nghỉ ngơi thôi!")
         return True
 
     rangeStart = startDate if startDate else datetime.now()
@@ -268,21 +239,18 @@ def scanAllDeadlines(chatId, isManual=False, startDate=None, numDays=7):
     endStr = rangeEnd.strftime('%d/%m/%Y')
 
     if isManual:
-        header = "🔍 **DANH SÁCH DEADLINE**\n"
+        header = "**DANH SÁCH DEADLINE**\n"
     else:
-        header = "🚀 **THÔNG BÁO DEADLINE TỰ ĐỘNG**\n"
+        header = "**THÔNG BÁO DEADLINE TỰ ĐỘNG**\n"
 
-    header += f"📅 *Thời gian: từ {startStr} đến {endStr}*\n"
-    header += f"✍️ Tìm thấy **{len(messages)}** sự kiện trong khoảng thời gian này.\n"
+    header += f"Thời gian: từ {startStr} đến {endStr}\n"
+    header += f"Tìm thấy **{len(messages)}** sự kiện trong khoảng thời gian này.\n"
     header += "━━━━━━━━━━━━━━━━━━"
     
     notifier.send_message("discord", chatId, header)
 
     for m in messages:
-        task_id = m['callback'].split('_', 1)[1] if '_' in m['callback'] else m['callback']
-        action = "undone" if m['callback'].startswith('undone_') else "done"
-        final_text = m['text'] + f"\n\n👉 Dùng lệnh `/{action} {task_id}` để thay đổi trạng thái."
-        notifier.send_message("discord", chatId, final_text)
+        notifier.send_message("discord", chatId, m['text'])
         time.sleep(0.3)
     return True
 

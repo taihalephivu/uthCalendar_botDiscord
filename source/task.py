@@ -11,6 +11,7 @@ from utils import log
 import json
 import redisManager
 import utils
+import database as db
 
 WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
 
@@ -18,7 +19,7 @@ def sendWorkerCheckIn(_self, _chatId):
     workerName = _self.request.hostname
 
     try:
-        notifier.send_message("discord", _chatId, f"🤖 **[{workerName}]** Đã tiếp nhận lệnh của bạn. Đang xử lý... ⏳")
+        notifier.send_message("discord", _chatId, f"**[{workerName}]**\nĐã tiếp nhận lệnh của bạn. Đang xử lý...")
         log("INFO", f"Đang xử lí lệnh cho user: {_chatId}")
     except Exception as e:
         log("ERROR", f"Không thể gửi báo danh: {e}")
@@ -50,8 +51,17 @@ def registrationTask(self, chatId, mssv, password):
     sendWorkerCheckIn(self, chatId)
     success, resultMsg = portalService.verifyAndSaveUser(chatId, mssv, password)
     if success:
-        resultMsg += "\n\n✅ Tuyệt vời! Bạn đã đăng ký thành công. Bây giờ bạn có thể xem lịch và deadline rồi đó."
+        resultMsg += "\n\nBây giờ bạn có thể xem lịch và deadline rồi đó."
     notifier.send_message("discord", chatId, resultMsg)
+
+@app.task(bind=True, name='tasks.logoutTask', queue='high_priority')
+def logoutTask(self, chatId):
+    sendWorkerCheckIn(self, chatId)
+    db.deleteUser(chatId)
+    redisManager.deleteSession(chatId, 'portal')
+    redisManager.deleteSession(chatId, 'course')
+    
+    notifier.send_message("discord", chatId, "**Đăng xuất thành công!**\nToàn bộ dữ liệu tài khoản và lịch sử của bạn đã được xóa khỏi hệ thống hoàn toàn.")
 
 @app.task(bind=True, name='tasks.customDeadlineTask', queue='high_priority')
 def customDeadlineTask(self, chatId, startDateStr, numDays):
@@ -121,12 +131,14 @@ def scheduleClassRemindersTask(self, chatId, dateStr):
         if not tuGioStr: continue
         
         try:
+            from zoneinfo import ZoneInfo
             dtStr = f"{dateStr} {tuGioStr}"
             classTime = datetime.strptime(dtStr, "%d/%m/%Y %H:%M")
             notifyTime = classTime - timedelta(hours=1)
+            notifyTime_aware = notifyTime.replace(tzinfo=ZoneInfo("Asia/Ho_Chi_Minh"))
             
             if notifyTime > datetime.now():
-                notifySingleClassTask.apply_async(args=[chatId, c, dateStr], eta=notifyTime)
+                notifySingleClassTask.apply_async(args=[chatId, c, dateStr], eta=notifyTime_aware)
         except Exception as e:
             log("ERROR", f"Lỗi parse time lên lịch 1 tiếng: {e}")
 
@@ -166,10 +178,27 @@ def updateWeatherTask():
                 for day in data['forecast']['forecastday']:
                     forecast_data.extend(day['hour'])
 
-                redisManager.redisClient.set(f"forecast:{code}", json.dumps(forecast_data), ex=3600)
+                redisManager.redisClient.set(f"forecast:{code}", json.dumps(forecast_data), ex=7200)
                 log("SUCCESS", f"Đã lưu dự báo 48h cho {code}")
             else:
                 log("ERROR", f"Không thể lấy weather cho {code}, Code: {response.status_code if response else 'None'}")
                 
         except Exception as e:
             log("ERROR", f"Lỗi fetch forecast {code}: {e}")
+
+# ==========================================
+# 3. CRON JOB TASK WRAPPERS (Celery Beat)
+# ==========================================
+import cronService
+
+@app.task(name='tasks.cron_notifyTomorrowClasses')
+def cron_notifyTomorrowClasses():
+    cronService.notifyTomorrowClasses()
+
+@app.task(name='tasks.cron_scheduleTodayClasses')
+def cron_scheduleTodayClasses():
+    cronService.scheduleTodayClasses()
+
+@app.task(name='tasks.cron_autoScanAllUsers')
+def cron_autoScanAllUsers():
+    cronService.autoScanAllUsers()
