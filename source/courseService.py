@@ -14,10 +14,11 @@ def rebuildSession(cookieDict):
     session.cookies.update(cookieDict)
     return session
 
-def getValidCourseSession(chatId, rawUser, rawPass):
-    cached = redisManager.getSession(chatId, 'course')
-    if cached:
-        return cached['cookies'], cached['sesskey']
+def getValidCourseSession(chatId, rawUser, rawPass, force=False):
+    if not force:
+        cached = redisManager.getSession(chatId, 'course')
+        if cached:
+            return cached['cookies'], cached['sesskey']
 
     session, sesskey = fetchMoodleSession(rawUser, rawPass) 
     
@@ -33,7 +34,7 @@ def getValidCourseSession(chatId, rawUser, rawPass):
 def fetchMoodleSession(username, password):
     with requests.Session(impersonate="chrome") as s:
         try:
-            loginUrl = f"https://courses.ut.edu.vn/login/index.php"
+            loginUrl = "https://courses.ut.edu.vn/login/index.php"
 
             loginPage = s.get(
                 loginUrl,
@@ -120,7 +121,7 @@ def fetchMoodleSession(username, password):
 
 def prepareActionEventsPayload(startDate, numDays):
     now_ts = int(startDate.timestamp())
-    end_ts = now_ts + (numDays * 24 * 60 * 60)
+    end_ts = int(now_ts + (numDays * 24 * 60 * 60))
     
     payload = [{
         "index": 0,
@@ -195,7 +196,13 @@ def getDeadlineMessages(chatId, cookieDict, sesskey, startDate=None, numDays=7):
             utils.log("ERROR", f"Lỗi lấy message deadline: {e}")
         return None
 
-def scanAllDeadlines(chatId, isManual=False, startDate=None, numDays=7):
+def scanAllDeadlines(chatId, isManual=False, startDate=None, numDays=7, onlyToday=False):
+    if onlyToday:
+        now_dt = datetime.now()
+        end_of_today = now_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+        numDays = (end_of_today - now_dt).total_seconds() / 86400
+        startDate = now_dt
+        
     u = db.getUserCredentials(chatId)
     if not u: return False
 
@@ -213,13 +220,8 @@ def scanAllDeadlines(chatId, isManual=False, startDate=None, numDays=7):
     if messages is None:
         utils.log("INFO", f"Đang làm mới sesskey cho {chatId}")
         redisManager.deleteSession(chatId, 'course')
-        session, sesskey = fetchMoodleSession(rawUser, rawPass)
+        session, sesskey = getValidCourseSession(chatId, rawUser, rawPass, force=True)
         if session and sesskey:
-            data = {
-                "sesskey": sesskey,
-                "cookies": session
-                }
-            redisManager.saveSession(chatId, 'course', data)
             messages = getDeadlineMessages(chatId, session, sesskey, startDate=startDate, numDays=numDays)
 
     if messages is None:
@@ -240,10 +242,14 @@ def scanAllDeadlines(chatId, isManual=False, startDate=None, numDays=7):
 
     if isManual:
         header = "**DANH SÁCH DEADLINE**\n"
+    elif onlyToday:
+        header = "**⚠️ DEADLINE CẦN HOÀN THÀNH TRONG HÔM NAY**\n"
     else:
         header = "**THÔNG BÁO DEADLINE TỰ ĐỘNG**\n"
 
     header += f"Thời gian: từ {startStr} đến {endStr}\n"
+    if onlyToday:
+        header = "**⚠️ CẢNH BÁO: BẠN CÓ DEADLINE TRONG HÔM NAY**\n"
     header += f"Tìm thấy **{len(messages)}** sự kiện trong khoảng thời gian này.\n"
     header += "━━━━━━━━━━━━━━━━━━"
     

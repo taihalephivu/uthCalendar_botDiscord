@@ -47,7 +47,7 @@ class WarpManager:
         try:
             container = self.client.containers.get(self.container_name)
             return container.status
-        except:
+        except Exception:
             return "Not Found"
 
 warp_manager = WarpManager()

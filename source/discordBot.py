@@ -6,7 +6,6 @@ from discord.ext import commands
 from discord import app_commands
 import os
 import task
-import database as db
 from utils import log
 
 intents = discord.Intents.default()

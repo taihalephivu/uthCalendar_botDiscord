@@ -32,23 +32,3 @@ def deleteSession(chatId, serviceType):
     key = f"auth:{serviceType}:{chatId}"
     redisClient.delete(key)
     log("REDIS", f"Đã xoá cache cho {chatId} - {serviceType}")
-
-def loginAndSaveToken(chatId, user, password):
-    try:
-        fakeCaptcha = utils.generateFakeCaptcha()
-        url = f"https://portal.ut.edu.vn/api/v1/user/login?g-recaptcha-response={fakeCaptcha}"
-        r = utils.safeRequest("POST", url, json={"username": user, "password": password})
-        data = r.json()
-        token = data.get("token")
-
-        if r.status_code == 200 and token:
-            saveSession(chatId, 'portal', token, expire=7200)
-            
-            log("SUCCESS", f"Đã làm mới và lưu Token thành công cho {chatId}")
-            return token
-            
-        log("ERROR", f"Login làm mới thất bại cho {chatId}: {data.get('message')}")
-        return None
-    except Exception as e:
-        log("ERROR", f"Lỗi nghiêm trọng trong loginAndSaveToken: {e}")
-        return None

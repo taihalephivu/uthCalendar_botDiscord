@@ -45,4 +45,8 @@ app.conf.beat_schedule = {
         'task': 'tasks.cron_autoScanAllUsers',
         'schedule': crontab(minute=0, hour=19, day_of_week=1),
     },
+    'scan-today-deadlines': {
+        'task': 'tasks.cron_scanTodayDeadlines',
+        'schedule': crontab(minute=0, hour=19),
+    },
 }

@@ -3,7 +3,6 @@
 
 import sqlite3
 import os
-import time
 from utils import log
 
 # SQLite DB Path (mặc định lưu tại thư mục hiện tại)

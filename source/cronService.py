@@ -58,3 +58,19 @@ def autoScanAllUsers():
 
     except Exception:
         log("CRITICAL", f"Crash tại autoScanAllUsers: {traceback.format_exc()}")
+
+def scanTodayDeadlines():
+    log("CRON", "Bắt đầu chu kỳ quét nhắc nhở deadline trong ngày")
+    try:
+        users = db.getUsersForDeadlineNotify()
+        if not users:
+            log("CRON", "Không có user nào cần quét Deadline")
+            return
+
+        for chat_id in users:
+            try:
+                task.periodicTodayDeadlineTask.delay(chat_id)
+            except Exception:
+                log("ERROR", f"Lỗi đẩy task cho {chat_id}: {traceback.format_exc()}")
+    except Exception:
+        log("CRITICAL", f"Crash tại scanTodayDeadlines: {traceback.format_exc()}")

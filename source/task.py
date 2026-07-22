@@ -19,8 +19,7 @@ def sendWorkerCheckIn(_self, _chatId):
     workerName = _self.request.hostname
 
     try:
-        notifier.send_message("discord", _chatId, f"**[{workerName}]**\nĐã tiếp nhận lệnh của bạn. Đang xử lý...")
-        log("INFO", f"Đang xử lí lệnh cho user: {_chatId}")
+        log("INFO", f"[{workerName}] Đang xử lí lệnh cho user: {_chatId}")
     except Exception as e:
         log("ERROR", f"Không thể gửi báo danh: {e}")
 
@@ -95,6 +94,18 @@ def portalWeekTask(self, chatId, startDateStr):
 def periodicCourseTask(self, chatId):
     log("WORKER", f"Đang quét deadline cho user: {chatId}")
     courseService.scanAllDeadlines(chatId, isManual=False)
+
+@app.task(
+    bind=True,
+    name='tasks.periodicTodayDeadlineTask', 
+    queue='low_priority', 
+    rate_limit='1/s',
+    autoretry_for=(Exception,), 
+    retry_kwargs={'max_retries': 3, 'countdown': 60}
+)
+def periodicTodayDeadlineTask(self, chatId):
+    log("WORKER", f"Đang quét deadline HÔM NAY cho user: {chatId}")
+    courseService.scanAllDeadlines(chatId, isManual=False, onlyToday=True)
 
 
 @app.task(
@@ -202,3 +213,7 @@ def cron_scheduleTodayClasses():
 @app.task(name='tasks.cron_autoScanAllUsers')
 def cron_autoScanAllUsers():
     cronService.autoScanAllUsers()
+
+@app.task(name='tasks.cron_scanTodayDeadlines')
+def cron_scanTodayDeadlines():
+    cronService.scanTodayDeadlines()

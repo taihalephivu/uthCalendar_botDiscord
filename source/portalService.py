@@ -9,27 +9,31 @@ import redisManager
 
 # session = requests.Session(impersonate="chrome110")
 
-def verifyUthCredentials(user, password):
+def forceLoginPortal(user, password):
     try:
         fakeCaptcha = utils.generateFakeCaptcha()
-        url = f"https://portal.ut.edu.vn/api/v1/user/login?g-recaptcha-response={fakeCaptcha}" 
-
+        url = f"https://portal.ut.edu.vn/api/v1/user/login?g-recaptcha-response={fakeCaptcha}"
         r = utils.safeRequest("POST", url, json={"username": user, "password": password})
         
         try:
             data = r.json()
         except Exception:
             utils.log("ERROR", f"Server không trả về JSON. Mã lỗi HTTP: {r.status_code}. Nội dung: {r.text[:500]}")
-            return False, "Lỗi phản hồi từ server trường"
+            return None, "Lỗi phản hồi từ server trường"
+            
+        token = data.get("token")
+        if r.status_code == 200 and token:
+            return token, "Thành công"
+        return None, data.get("message", "Sai tài khoản hoặc mật khẩu")
+    except Exception as e:
+        utils.log("ERROR", f"Lỗi login portal: {e}")
+        return None, "Lỗi kết nối server trường"
 
-        utils.log("INFO", f"Portal trả về: {data.get('message')}")
-        
-        if r.status_code == 200 and data.get("token"): 
-            return True, "Thành công"
-        return False, data.get("message", "Sai tài khoản hoặc mật khẩu")
-    except Exception as e: 
-        utils.log("ERROR", f"Lỗi verifyUthCredentials: {e}")
-        return False, "Lỗi kết nối server trường"
+def verifyUthCredentials(user, password):
+    token, msg = forceLoginPortal(user, password)
+    if token:
+        return True, msg
+    return False, msg
 
 def get_classes_by_week(chat_id, user, password, targetDate):
     try:
@@ -41,7 +45,7 @@ def get_classes_by_week(chat_id, user, password, targetDate):
             return False, "Không thể lấy Token. Vui lòng kiểm tra lại tài khoản/mật khẩu."
 
         headers = {
-            "authorization": f"Bearer {tk}",
+            "Authorization": f"Bearer {tk}",
             "Referer": "https://portal.ut.edu.vn/calendar",
             "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
             "accept": "application/json, text/plain, */*"
@@ -55,7 +59,7 @@ def get_classes_by_week(chat_id, user, password, targetDate):
 
         if res.status_code == 401:
             utils.log("WARN", f"Token của {chat_id} bị Invalid khi lấy lịch tuần. Đang login lại...")
-            tk = redisManager.loginAndSaveToken(chat_id, user, password)
+            tk = getValidPortalToken(chat_id, user, password, force=True)
             if not tk: 
                 return False, "Phiên đăng nhập hết hạn và không thể gia hạn. Hãy đăng ký lại."
             
@@ -102,28 +106,15 @@ def verifyAndSaveUser(chatId, mssv, password):
     utils.log("ERROR", f"User {chatId} đăng ký thất bại: {reason}")
     return False, f"**Thất bại:** {reason}"
 
-def getValidPortalToken(chatId, rawUser, rawPass):
-    cachedToken = redisManager.getSession(chatId, 'portal')
-    if cachedToken: return cachedToken
+def getValidPortalToken(chatId, rawUser, rawPass, force=False):
+    if not force:
+        cachedToken = redisManager.getSession(chatId, 'portal')
+        if cachedToken: return cachedToken
 
-    try:
-        fakeCaptcha = utils.generateFakeCaptcha()
-        url = f"https://portal.ut.edu.vn/api/v1/user/login?g-recaptcha-response={fakeCaptcha}"
-        r = utils.safeRequest("POST", url, json={"username": rawUser, "password": rawPass})
-
-        try:
-            res_data = r.json()
-        except Exception:
-            utils.log("ERROR", f"Server không trả về JSON. Mã lỗi HTTP: {r.status_code}. Nội dung: {r.text[:500]}")
-            return None
-
-        token = res_data.get("token")
-        utils.log("INFO", f"Portal trả về: {res_data.get('message')}")
-        if token:
-            redisManager.saveSession(chatId, 'portal', token, expire=7200)
-            return token
-    except Exception as e:
-        utils.log("ERROR", f"Lỗi Server Portal: {e}")
+    token, _ = forceLoginPortal(rawUser, rawPass)
+    if token:
+        redisManager.saveSession(chatId, 'portal', token, expire=7200)
+        return token
     return None
 
 def formatCalendarMessage(chatId, dateStr, isAuto=False, isTomorrow=False):
@@ -172,7 +163,7 @@ def formatCalendarMessage(chatId, dateStr, isAuto=False, isTomorrow=False):
             msg += f"\nPhòng: {c['tenPhong']}"
             msg += weatherLabel
             msg += f"\nTrạng thái: {statusLabel}\n"
-        msg += f"\n[Portal UTH](https://portal.ut.edu.vn/)"
+        msg += "\n[Portal UTH](https://portal.ut.edu.vn/)"
         return msg
     else:
         if isAuto:
@@ -180,7 +171,7 @@ def formatCalendarMessage(chatId, dateStr, isAuto=False, isTomorrow=False):
         return f"**Thông báo**\nNgày {dateStr} bạn không có lịch học."
 
 def formatSingleClassMessage(c, dateStr):
-    header = f"**NHẮC NHỞ: CÒN 1 TIẾNG NỮA VÀO HỌC!**\n"
+    header = "**NHẮC NHỞ: CÒN 1 TIẾNG NỮA VÀO HỌC!**\n"
     msg = header + "━━━━━━━━━━━━━━━━━━\n"
     courseLink = c.get('link', 'https://courses.ut.edu.vn/')
     statusLabel = "Tạm ngưng" if c.get("isTamNgung") else "Bình thường"
@@ -234,7 +225,7 @@ def format_week_calendar_message(chat_id, startDateStr):
         if date_key in week_data:
             week_data[date_key].append(item)
 
-    msg = f"**LỊCH HỌC CẢ TUẦN**\n"
+    msg = "**LỊCH HỌC CẢ TUẦN**\n"
     msg += f"Từ {monday.strftime('%d/%m')} đến {(monday + timedelta(days=6)).strftime('%d/%m')}\n"
     msg += "━━━━━━━━━━━━━━━━━━\n"
 
