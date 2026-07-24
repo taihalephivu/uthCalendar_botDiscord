@@ -143,13 +143,13 @@ def scheduleClassRemindersTask(self, chatId, dateStr):
         
         try:
             from zoneinfo import ZoneInfo
+            tz = ZoneInfo("Asia/Ho_Chi_Minh")
             dtStr = f"{dateStr} {tuGioStr}"
-            classTime = datetime.strptime(dtStr, "%d/%m/%Y %H:%M")
+            classTime = datetime.strptime(dtStr, "%d/%m/%Y %H:%M").replace(tzinfo=tz)
             notifyTime = classTime - timedelta(hours=1)
-            notifyTime_aware = notifyTime.replace(tzinfo=ZoneInfo("Asia/Ho_Chi_Minh"))
             
-            if notifyTime > datetime.now():
-                notifySingleClassTask.apply_async(args=[chatId, c, dateStr], eta=notifyTime_aware)
+            if notifyTime > datetime.now(tz):
+                notifySingleClassTask.apply_async(args=[chatId, c, dateStr], eta=notifyTime)
         except Exception as e:
             log("ERROR", f"Lỗi parse time lên lịch 1 tiếng: {e}")
 
@@ -202,18 +202,18 @@ def updateWeatherTask():
 # ==========================================
 import cronService
 
-@app.task(name='tasks.cron_notifyTomorrowClasses')
+@app.task(name='tasks.cron_notifyTomorrowClasses', queue='low_priority')
 def cron_notifyTomorrowClasses():
     cronService.notifyTomorrowClasses()
 
-@app.task(name='tasks.cron_scheduleTodayClasses')
+@app.task(name='tasks.cron_scheduleTodayClasses', queue='low_priority')
 def cron_scheduleTodayClasses():
     cronService.scheduleTodayClasses()
 
-@app.task(name='tasks.cron_autoScanAllUsers')
+@app.task(name='tasks.cron_autoScanAllUsers', queue='low_priority')
 def cron_autoScanAllUsers():
     cronService.autoScanAllUsers()
 
-@app.task(name='tasks.cron_scanTodayDeadlines')
+@app.task(name='tasks.cron_scanTodayDeadlines', queue='low_priority')
 def cron_scanTodayDeadlines():
     cronService.scanTodayDeadlines()

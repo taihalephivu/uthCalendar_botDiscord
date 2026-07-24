@@ -225,7 +225,8 @@ def scanAllDeadlines(chatId, isManual=False, startDate=None, numDays=7, onlyToda
             messages = getDeadlineMessages(chatId, session, sesskey, startDate=startDate, numDays=numDays)
 
     if messages is None:
-        notifier.send_message("discord", chatId, "**Lỗi**\nKhông thể lấy danh sách deadline.")
+        if isManual:
+            notifier.send_message("discord", chatId, "**Lỗi**\nKhông thể lấy danh sách deadline.")
         return False
 
             
@@ -242,14 +243,13 @@ def scanAllDeadlines(chatId, isManual=False, startDate=None, numDays=7, onlyToda
 
     if isManual:
         header = "**DANH SÁCH DEADLINE**\n"
+        header += f"Thời gian: từ {startStr} đến {endStr}\n"
     elif onlyToday:
-        header = "**⚠️ DEADLINE CẦN HOÀN THÀNH TRONG HÔM NAY**\n"
+        header = "**⚠️ CẢNH BÁO: BẠN CÓ DEADLINE TRONG HÔM NAY**\n"
     else:
         header = "**THÔNG BÁO DEADLINE TỰ ĐỘNG**\n"
+        header += f"Thời gian: từ {startStr} đến {endStr}\n"
 
-    header += f"Thời gian: từ {startStr} đến {endStr}\n"
-    if onlyToday:
-        header = "**⚠️ CẢNH BÁO: BẠN CÓ DEADLINE TRONG HÔM NAY**\n"
     header += f"Tìm thấy **{len(messages)}** sự kiện trong khoảng thời gian này.\n"
     header += "━━━━━━━━━━━━━━━━━━"
     

@@ -119,13 +119,18 @@ def getValidPortalToken(chatId, rawUser, rawPass, force=False):
 
 def formatCalendarMessage(chatId, dateStr, isAuto=False, isTomorrow=False):
     u = db.getUserCredentials(chatId)
-    if not u: return "Bạn chưa đăng ký tài khoản!"
+    if not u:
+        if isAuto:
+            return None
+        return "Bạn chưa đăng ký tài khoản!"
     
     rawUser = utils.decryptData(u['uth_user'])
     rawPass = utils.decryptData(u['uth_pass'])
 
     classes, error = getClassesByDate(chatId, rawUser, rawPass, dateStr)
     if classes is False:
+        if isAuto:
+            return None
         return f"**Lỗi:** {error}"
     
     if classes:
